@@ -1,0 +1,132 @@
+import json
+import os
+from pathlib import Path
+from PySide6.QtCore import QObject, Signal, Slot, Property
+
+class ProjectManager(QObject):
+    projectLoaded = Signal()
+    projectSaved = Signal()
+    errorOccurred = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._project_name = ""
+        self._project_path = ""
+        self._map_file = ""
+        self._yaml_file = ""
+        self._resolution = 0.05
+        self._is_loaded = False
+
+    @Property(str, notify=projectLoaded)
+    def projectName(self):
+        return self._project_name
+        
+    @Property(str, notify=projectLoaded)
+    def projectPath(self):
+        return self._project_path
+
+    def _uri_to_path(self, uri: str) -> str:
+        if uri.startswith("file://"):
+            return uri[7:]
+        return uri
+
+    @Slot(str, str, str, str, str, result=bool)
+    def createProject(self, name, folder_uri, map_uri, yaml_uri, resolution_str):
+        import shutil
+        try:
+            folder_path = self._uri_to_path(folder_uri)
+            map_path = self._uri_to_path(map_uri)
+            yaml_path = self._uri_to_path(yaml_uri)
+            
+            if not name or not map_path or not folder_path:
+                self.errorOccurred.emit("Project name, map file, and folder path are required.")
+                return False
+
+            map_path_obj = Path(map_path)
+            if not map_path_obj.exists():
+                self.errorOccurred.emit("Original map file does not exist.")
+                return False
+
+            project_dir = Path(folder_path) / name
+            mepro_path = project_dir / f"{name}.mepro"
+            
+            if mepro_path.exists():
+                self.errorOccurred.emit("Project already exists or .mepro file found in the target directory.")
+                return False
+                
+            project_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Copy map and yaml to project directory
+            new_map_path = project_dir / map_path_obj.name
+            shutil.copy(map_path_obj, new_map_path)
+            
+            new_yaml_path = ""
+            if yaml_path and Path(yaml_path).exists():
+                yaml_path_obj = Path(yaml_path)
+                new_yaml_path = project_dir / yaml_path_obj.name
+                shutil.copy(yaml_path_obj, new_yaml_path)
+                
+            res = float(resolution_str) if resolution_str else 0.05
+            
+            data = {
+                "project_name": name,
+                "original_map": str(new_map_path),
+                "original_yaml": str(new_yaml_path) if new_yaml_path else "",
+                "resolution": res,
+                "edited_overlay": "",
+                "merged_map": ""
+            }
+            
+            with open(mepro_path, 'w') as f:
+                json.dump(data, f, indent=4)
+                
+            self._project_name = name
+            self._project_path = str(project_dir)
+            self._map_file = str(new_map_path)
+            self._yaml_file = str(new_yaml_path) if new_yaml_path else ""
+            self._resolution = res
+            self._is_loaded = True
+            
+            self.projectLoaded.emit()
+            return True
+        except Exception as e:
+            self.errorOccurred.emit(f"Failed to create project: {e}")
+            return False
+
+    @Slot(str, result=bool)
+    def openProject(self, mepro_uri):
+        try:
+            mepro_path = Path(self._uri_to_path(mepro_uri))
+            if not mepro_path.exists():
+                self.errorOccurred.emit("Project file not found.")
+                return False
+                
+            with open(mepro_path, 'r') as f:
+                data = json.load(f)
+                
+            self._project_name = data.get("project_name", mepro_path.stem)
+            self._project_path = str(mepro_path.parent)
+            self._map_file = data.get("original_map", "")
+            self._yaml_file = data.get("original_yaml", "")
+            self._resolution = data.get("resolution", 0.05)
+            # overlay and merged skipped for now, but will be handled later
+            self._is_loaded = True
+            
+            self.projectLoaded.emit()
+            return True
+        except Exception as e:
+            self.errorOccurred.emit(f"Failed to open project: {e}")
+            return False
+
+    @Slot(result=str)
+    def getOriginalMap(self):
+        return self._map_file
+
+    @Slot(result=str)
+    def getOriginalYaml(self):
+        return self._yaml_file
+
+    @Slot(result=float)
+    def getResolution(self):
+        return self._resolution
+
