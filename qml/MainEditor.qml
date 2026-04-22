@@ -35,7 +35,6 @@ Rectangle {
     }
 
     // Signal emitted to layer canvases to commit a draw operation
-    signal doLayerDraw(string layerId, var points, real drawValue, string tool, int size)
 
     ListModel {
         id: layersModel
@@ -52,17 +51,27 @@ Rectangle {
 
     // Collect all layer canvas data and send to Python to persist
     function saveProject() {
+        // Also save merged map so everything is fully persisted
+        requestSaveMapEdits()
+        
         let layerDataList = mapCanvas.getLayerDataUrls();
         let layerMetaList = [];
         for (let i = 0; i < layersModel.count; i++) {
             let layer = layersModel.get(i);
+            let b64 = "";
+            for (let j = 0; j < layerDataList.length; j++) {
+                if (layerDataList[j].layerId === layer.layerId) {
+                    b64 = layerDataList[j].b64;
+                    break;
+                }
+            }
             layerMetaList.push({
                 "layerId": layer.layerId,
                 "name": layer.name,
                 "colorStr": layer.colorStr,
                 "opacity": layer.opacity,
                 "visible": layer.layerVisible,
-                "b64": (i < layerDataList.length) ? layerDataList[i].b64 : ""
+                "b64": b64
             });
         }
         mapController.saveProjectFull(layerMetaList);

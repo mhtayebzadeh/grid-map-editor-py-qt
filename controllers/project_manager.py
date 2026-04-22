@@ -130,3 +130,29 @@ class ProjectManager(QObject):
     def getResolution(self):
         return self._resolution
 
+    def updateMeproLayers(self, layers_meta):
+        import datetime
+        try:
+            if not self._project_name or not self._project_path:
+                return
+            mepro_path = Path(self._project_path) / f"{self._project_name}.mepro"
+            if not mepro_path.exists():
+                return
+            
+            with open(mepro_path, 'r') as f:
+                data = json.load(f)
+                
+            data["layers"] = layers_meta
+            now_iso = datetime.datetime.now().isoformat()
+            if "createdAt" not in data:
+                data["createdAt"] = now_iso
+            data["updatedAt"] = now_iso
+            data["lastSavedAt"] = now_iso
+            
+            with open(mepro_path, 'w') as f:
+                json.dump(data, f, indent=4)
+                
+            print(f"Updated mepro with layers and timestamp at {mepro_path}")
+        except Exception as e:
+            print(f"Failed to update mepro layers: {e}")
+

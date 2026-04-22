@@ -262,6 +262,45 @@ Rectangle {
                     }
                 }
                 
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Text { text: "Robot Position Topic"; color: "#a0a5ab"; font.pixelSize: 12 }
+                    TextField {
+                        id: slamRobotTopicField
+                        Layout.fillWidth: true
+                        text: "/robot_pose"
+                        color: "white"
+                        background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Text { text: "Map Topic"; color: "#a0a5ab"; font.pixelSize: 12 }
+                    TextField {
+                        id: slamMapTopicField
+                        Layout.fillWidth: true
+                        text: "/map"
+                        color: "white"
+                        background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Text { text: "Mapping Enabled Param"; color: "#a0a5ab"; font.pixelSize: 12 }
+                    TextField {
+                        id: slamMappingEnabledParamField
+                        Layout.fillWidth: true
+                        text: "/slam_toolbox/mapping_enabled"
+                        color: "white"
+                        background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                    }
+                }
+
                 Item { Layout.fillHeight: true }
 
                 Button {

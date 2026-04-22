@@ -1,30 +1,153 @@
-# QML Architecture Plan (Based on app_details.md)
+# Grid Map Editor Architecture Notes
 
-## 1. Screens
-- **StartScreen.qml**: Initial launcher. Mode selection (SLAM vs Edit). File pickers for `.pgm` and `.yaml`. Resolution input.
-- **MainEditor.qml**: The primary workspace loaded after StartScreen.
+## 1) Application Screens
 
-## 2. Main Editor Layout
-- **SplitView**: To handle the resizable Left Panel and Map Canvas.
-- **LeftPanel.qml**: Contains a `TabBar` and `StackLayout` or `SwipeView` for 4 tabs:
-  1. `ProjectTab.qml`: Mode toggle, auto-save, save project.
-  2. `MapEditTab.qml`: Brush tools (Obstacle, Free, Revert), Brush size.
-  3. `LayersTab.qml`: Layer list (add/rename/vis/opacity), Drawing tools (Pencil, Line, Polygon, Eraser).
-  4. `GatesTab.qml`: Categories (Gates, Home, Charge), List view of placed gates.
-- **MapCanvas.qml**: Main interactive area. Needs to support Pan, Zoom, Rotate, Drawing overlays, and Gate icons.
-- **GateEditDialog.qml**: Modal popup for editing ID, Name, Description, Image, Position.
+- **StartScreen.qml**
+  - Mode selection: `SLAM` vs `Edit Existing Map`.
+  - Existing map inputs: `.yaml`, `.pgm`, resolution fallback.
+  - **SLAM creation fields (required)**:
+    - `robot position topic`
+    - `map topic`
+    - `mapping enabled parameter`
+  - Output of StartScreen is a normalized startup config object passed to `MainEditor.qml`.
 
-## 3. Theming
-- Dark mode by default (`Material.Dark` or custom palette).
+- **MainEditor.qml**
+  - Main workspace host for tabs + map canvas.
+  - Owns app-level state: active mode, active tab, layer model, active layer/tool, brush size, project path/id.
 
-### 4. UI Details Extract from Images
-- **Colors**:
-  - Main App Background: `#1a1e24`
-  - Side Panel Background: `#1e2329`
-  - Canvas Background: `#323842` (approximate)
-  - Active Blue / Accents: `#2e6bf0`
-  - Success Green (Save buttons): `#22c55e` or `#1fbd58`
-  - Inactive Panel / Input Background: `#252b32` or `#2a3038`
-- **Layout Split**: SplitView with a resizable Side Panel on the left (min ~250px) and a Map Canvas taking up the remaining space on the right.
-- **Top Right Canvas Controls**: Rotate CCW, Rotate CW, Fit Map, Focus Robot, Follow Robot.
-- **Bottom Right Canvas Indicator**: Coordinate display `PX: x, y | M: x, y`.
+---
+
+## 2) Main Editor Layout
+
+- **SplitView**
+  - Left: control panel (tabs).
+  - Right: `MapCanvas.qml` (interactive map viewport).
+
+- **Left panel tabs**
+  1. **ProjectTab.qml**
+     - Save project action.
+     - Project mode/config and save metadata display.
+  2. **MapEditTab.qml**
+     - Base-map editing tools: `Obstacle`, `Free`, `Revert`, brush size.
+  3. **LayersTab.qml**
+     - Layer CRUD: add/rename/visibility/opacity.
+     - Drawing tools: `Pencil`, `Line`, `Polygon`, `Eraser`.
+  4. **GatesTab.qml**
+     - Gate/category management and placement metadata.
+
+---
+
+## 3) Map Rendering + Layering Model
+
+### 3.1 Canonical stack order
+
+Rendering stack is always present (unless individually hidden by user visibility toggles):
+
+1. `original_map` (from map provider)
+2. `edit_layer` (map-edit strokes, same dimensions as map)
+3. `merged_map` semantic result (`original_map + edit_layer`)
+4. user layers (`keepout`, `speed`, `direction`, ...), each with color + opacity
+
+> Important rule: switching tabs must **not** hide `edit_layer` or other layers.
+
+### 3.2 Pixel and resolution contract
+
+- `edit_layer` and all user layers must have:
+  - exact same width/height as map
+  - one logical cell per map pixel
+  - no smoothing/antialiasing (`pixel-accurate`, hard edges)
+- All drawing operations use integer map coordinates.
+
+### 3.3 Canvas structure (per layer)
+
+- Offscreen `dataCanvas` holds grayscale/semantic values.
+- Visible `displayCanvas` tints by layer color and applies opacity.
+- `edit_layer` follows same size/resolution contract, displayed in grayscale (black/white/gray semantics).
+
+---
+
+## 4) Interaction Model
+
+- **Pan/zoom/rotate** are viewport-level interactions.
+- **Mouse coordinate projection** always maps screen position into map pixel space.
+- **Brush preview**:
+  - square shape aligned to pixel grid
+  - **in Layers tab, preview color = active layer color**
+  - in map-edit mode, grayscale preview based on tool semantics
+
+### 4.1 Layer drawing UX
+
+- `Pencil`/`Eraser`: continuous stroke updates while dragging.
+- `Line`:
+  - first click sets start point
+  - moving mouse shows live line preview
+  - release commits line to layer
+- `Polygon`:
+  - clicks append vertices
+  - live preview shows pending segment(s)
+  - finalize action commits polygon fill/shape according to tool behavior
+
+---
+
+## 5) Save/Project Persistence Contract
+
+### 5.1 Save action scope (ProjectTab Save button)
+
+Single save action must persist **all project artifacts**:
+
+- base map files (`.pgm` + `.yaml` as applicable)
+- `edit_layer` artifact
+- `merged_map` artifact
+- all custom layers (one file per layer + metadata)
+- gates/entities metadata (if present)
+- `.mepro` project manifest
+
+### 5.2 `.mepro` required metadata
+
+`.mepro` should include at minimum:
+
+- project id/name
+- project directory paths
+- map config (dimensions, resolution, origin, map files)
+- layer list (id/name/type/color/opacity/visibility/file path)
+- edit layer + merged map references
+- last updated/save timestamps
+  - e.g. `updatedAt`, `lastSavedAt` (ISO-8601)
+
+---
+
+## 6) Controllers and Responsibilities
+
+- **map_provider.py**
+  - load map, expose map image provider
+  - persist merged/edit/layer outputs
+  - guarantee output dimensions match map dimensions
+
+- **project_manager.py**
+  - own `.mepro` schema read/write
+  - save/load full project state (including timestamps)
+
+- **robot_handler.py**
+  - robot pose stream and map coordinate transforms for robot marker/follow mode
+
+---
+
+## 7) Reliability Rules
+
+- QML bindings must tolerate startup ordering (`null` guards for controllers/handlers).
+- No UI overlay controls should be parented into transformed map-space containers.
+- Drawing operations must avoid non-existent backend calls; command flow should be explicit QML signal -> layer/edit canvas update -> persistence stage.
+
+---
+
+## 8) Theme / UI tokens
+
+- Main background: `#1a1e24`
+- Side panel: `#1e2329`
+- Canvas bg: `#323842`
+- Accent blue: `#2e6bf0`
+- Success green: `#22c55e` / `#1fbd58`
+- Input/secondary bg: `#252b32` / `#2a3038`
+
+Top-right canvas controls: rotate CCW/CW, fit map, focus robot, follow robot.
+Bottom-left indicator: `PX: x,y` and `M: x,y`.

@@ -4,6 +4,7 @@ import QtQuick.Layouts
 
 Item {
     id: root
+    signal saveRequested()
 
     ColumnLayout {
         anchors.fill: parent
@@ -58,7 +59,10 @@ Item {
         Rectangle {
             Layout.fillWidth: true; height: 40; color: "#16a34a"; radius: 6
             Text { anchors.centerIn: parent; text: "Save Project"; color: "white"; font.pixelSize: 14; font.bold: true }
-            MouseArea { anchors.fill: parent }
+            MouseArea { 
+                anchors.fill: parent 
+                onClicked: root.saveRequested()
+            }
         }
     }
 }

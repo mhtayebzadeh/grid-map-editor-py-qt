@@ -187,44 +187,53 @@ class MapController(QObject):
 
 
     @Slot('QVariantList')
-    def saveLayers(self, layersArray):
-        if self.map_img is None:
-            print("No map to save layers to.")
-            return
-
+    def saveProjectFull(self, layersArray):
         import base64
         import io
-        from PIL import Image
         import os
-
-        if not self.map_uri:
-            print("No active map_uri")
-            return
-            
-        base_dir = os.path.dirname(self.map_uri.replace('file://', ''))
+        from PIL import Image
+        from datetime import datetime
         
+        project_dir = Path(self._project_manager.projectPath)
+        if not project_dir.exists():
+            print("Project dir does not exist.")
+            return
+
+        saved_layers_meta = []
+
         for layer_data in layersArray:
             layerId = layer_data.get('layerId', '')
             name = layer_data.get('name', 'Layer')
             b64 = layer_data.get('b64', '')
             
-            if not b64 or not layerId:
-                continue
-
-            try:
-                # Strip data prefix
-                header, encoded = b64.split(",", 1)
-                img_data = base64.b64decode(encoded)
-                
-                # Open with PIL
-                overlay_img = Image.open(io.BytesIO(img_data)).convert('RGBA')
-                r, g, b, a = overlay_img.split()
-                l_img = r
-                
-                # Save PGM
-                out_path = os.path.join(base_dir, f"{layerId}.pgm")
-                l_img.save(out_path)
-                print(f"Saved layer '{name}' to {out_path}")
-                
-            except Exception as e:
-                print(f"Failed to save layer {layerId}: {e}")
+            # Record metadata
+            layer_meta = {
+                "layerId": layerId,
+                "name": name,
+                "colorStr": layer_data.get('colorStr', ''),
+                "opacity": layer_data.get('opacity', 1.0),
+                "visible": layer_data.get('visible', True),
+                "file": ""
+            }
+            
+            if b64 and layerId:
+                try:
+                    header, encoded = b64.split(",", 1)
+                    img_data = base64.b64decode(encoded)
+                    
+                    # Open with PIL
+                    overlay_img = Image.open(io.BytesIO(img_data)).convert('RGBA')
+                    r, g, b, a = overlay_img.split()
+                    l_img = r # Get grayscale representation
+                    
+                    out_path = project_dir / f"{layerId}.pgm"
+                    l_img.save(str(out_path))
+                    layer_meta["file"] = str(out_path)
+                    print(f"Saved layer '{name}' to {out_path}")
+                except Exception as e:
+                    print(f"Failed to save layer {layerId}: {e}")
+            
+            saved_layers_meta.append(layer_meta)
+            
+        # Tell project manager to update mepro with layers and timestamps
+        self._project_manager.updateMeproLayers(saved_layers_meta)

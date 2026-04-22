@@ -73,7 +73,13 @@ Rectangle {
             Layout.fillHeight: true
             currentIndex: sidePanelRoot.currentTab
 
-            ProjectTab {}
+            ProjectTab {
+                onSaveRequested: {
+                    if (typeof root.saveProject === "function") {
+                        root.saveProject()
+                    }
+                }
+            }
             MapEditTab {}
             LayersTab {}
             GatesTab {}

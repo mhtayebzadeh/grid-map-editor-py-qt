@@ -421,9 +421,20 @@ Rectangle {
                     width: logicalSize
                     height: logicalSize
                     radius: 0
-                    color: (root.currentMapEditTool === "obstacle" || root.currentLayerTool === "eraser") ? "rgba(0,0,0,0.5)" : 
-                           (root.currentMapEditTool === "free") ? "rgba(255,255,255,0.5)" : "rgba(59, 130, 246, 0.5)"
-                    border.color: "#3b82f6"
+                    color: {
+                        if (root.activeMode === "layers" && root.currentLayerTool !== "eraser") {
+                            return root.activeLayerColor || "#ef4444"
+                        }
+                        return (root.currentMapEditTool === "obstacle" || root.currentLayerTool === "eraser") ? "black" : 
+                               (root.currentMapEditTool === "free") ? "white" : "#3b82f6"
+                    }
+                    border.color: {
+                        if (root.activeMode === "layers" && root.currentLayerTool !== "eraser") {
+                            return root.activeLayerColor || "#ef4444"
+                        }
+                        return "#3b82f6"
+                    }
+                    opacity: 0.5
                     border.width: 2 / currentScale
                     visible: panZoomArea.containsMouse && (mapController ? mapController.mapWidth : 0) > 0 && !panZoomArea.pressed && (root.activeMode === "map-edit" || root.activeMode === "layers")
                     // Note editCanvas.previewX doesn't exist anymore, so we just use mouseMapPxX
@@ -465,8 +476,17 @@ Rectangle {
                         } else if (root.currentLayerTool === "line") {
                             isDrawing = true
                             lastDrawPt = pt // start point
+                            mapCanvasRoot.previewFromX = pt.x
+                            mapCanvasRoot.previewFromY = pt.y
+                            mapCanvasRoot.previewToX = pt.x
+                            mapCanvasRoot.previewToY = pt.y
+                            mapCanvasRoot.showingPreview = true
                         } else if (root.currentLayerTool === "poly") {
                             polyPts.push(pt)
+                            mapCanvasRoot.previewPolyPts = polyPts
+                            mapCanvasRoot.previewToX = pt.x
+                            mapCanvasRoot.previewToY = pt.y
+                            mapCanvasRoot.showingPreview = true
                         }
                     } else if (root.activeMode === "map-edit") {
                         if (root.currentMapEditTool === "obstacle" || root.currentMapEditTool === "free" || root.currentMapEditTool === "revert") {
@@ -484,6 +504,7 @@ Rectangle {
                     let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
                     if (root.activeMode === "layers" && root.currentLayerTool === "line") {
                         mapCanvasRoot.doLayerDraw(root.activeLayerId, [lastDrawPt, pt], root.layerDrawValue, root.currentLayerTool, root.brushSize)
+                        mapCanvasRoot.showingPreview = false
                     }
                     isDrawing = false
                 }
@@ -512,6 +533,9 @@ Rectangle {
                     if (root.activeMode === "layers" && root.activeLayerId !== "" && (root.currentLayerTool === "pencil" || root.currentLayerTool === "eraser")) {
                         mapCanvasRoot.doLayerDraw(root.activeLayerId, [lastDrawPt, pt], root.layerDrawValue, root.currentLayerTool, root.brushSize)
                         lastDrawPt = pt
+                    } else if (root.activeMode === "layers" && root.currentLayerTool === "line") {
+                        mapCanvasRoot.previewToX = pt.x
+                        mapCanvasRoot.previewToY = pt.y
                     } else if (root.activeMode === "map-edit" && (root.currentMapEditTool === "obstacle" || root.currentMapEditTool === "free" || root.currentMapEditTool === "revert")) {
                         editCanvas.queueDraw(root.currentMapEditTool, root.brushSize, lastDrawPt.x, lastDrawPt.y, pt.x, pt.y)
                         lastDrawPt = pt
@@ -519,7 +543,13 @@ Rectangle {
                 }
 
                 let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
-                    let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
+                let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
+                
+                if (root.activeMode === "layers" && root.currentLayerTool === "poly" && polyPts.length > 0) {
+                    mapCanvasRoot.previewToX = pt.x
+                    mapCanvasRoot.previewToY = pt.y
+                }
+                
                 mouseMapPxX = pt.x
                 mouseMapPxY = pt.y
                 
