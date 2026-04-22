@@ -21,6 +21,33 @@ class MapImageProvider(QQuickImageProvider):
         self.image = img
 
     def requestImage(self, id, size, requestedSize):
+        # Handle layer requests: layer?path=/path/to/file.pgm
+        if id.startswith("layer?"):
+            try:
+                import urllib.parse
+                params = urllib.parse.parse_qs(id.split("?")[1])
+                path = params.get("path", [""])[0]
+                if path and Path(path).exists():
+                    with Image.open(path) as img:
+                        img = img.convert("RGBA")
+                        # Process transparency: white (>253) -> transparent
+                        data = np.array(img)
+                        # Identify white pixels (R, G, B > 253)
+                        mask = (data[:, :, 0] > 253) & (data[:, :, 1] > 253) & (data[:, :, 2] > 253)
+                        data[mask, 3] = 0
+                        
+                        # Convert back to QImage
+                        height, width, channels = data.shape
+                        bytes_per_line = channels * width
+                        qimg = QImage(data.data, width, height, bytes_per_line, QImage.Format_RGBA8888).copy()
+                        if requestedSize.isValid():
+                            qimg = qimg.scaled(requestedSize)
+                        return qimg
+            except Exception as e:
+                print(f"Error serving layer image: {e}")
+            return QImage()
+
+        # Default map behavior
         res = self.image
         if not self.image.isNull() and requestedSize.isValid():
             res = self.image.scaled(requestedSize)
@@ -115,19 +142,35 @@ class MapController(QObject):
     def saveMergedMap(self, base64_image_data):
         try:
             # 1. Decode base64 image coming from QML Canvas
+            if "," not in base64_image_data:
+                print(f"Error saving merged map: Invalid base64 data received")
+                return
+
             header, encoded = base64_image_data.split(",", 1)
             image_bytes = base64.b64decode(encoded)
             
             overlay_arr = np.frombuffer(image_bytes, dtype=np.uint8)
             overlay_img = cv2.imdecode(overlay_arr, cv2.IMREAD_UNCHANGED) # Should be BGRA/RGBA
             
+            if overlay_img is None:
+                print(f"Error saving merged map: Failed to decode image")
+                return
+            
             project_dir = Path(self._project_manager.projectPath)
-            overlay_path = project_dir / "edited_overlay.png"
+            edit_layer_path = project_dir / "edit_layer.png"
             merged_path = project_dir / "merged_map.pgm"
             yaml_path = project_dir / "merged_map.yaml"
             
-            # Save raw overlay
-            cv2.imwrite(str(overlay_path), overlay_img)
+            # Save edit layer (PNG to preserve transparency)
+            cv2.imwrite(str(edit_layer_path), overlay_img)
+            
+            # For merging, we still need a grayscale version where alpha=0 is neutral(127)
+            if len(overlay_img.shape) == 3 and overlay_img.shape[2] == 4:
+                r, g, b, a = cv2.split(overlay_img)
+                gray_for_merge = cv2.cvtColor(overlay_img[:, :, :3], cv2.COLOR_BGR2GRAY)
+                gray_for_merge[a == 0] = 127
+            else:
+                gray_for_merge = cv2.cvtColor(overlay_img[:, :, :3], cv2.COLOR_BGR2GRAY) if len(overlay_img.shape) == 3 and overlay_img.shape[2] >= 3 else overlay_img
             
             # 2. Merge with original PGM map
             original_pgm_path = self._project_manager.getOriginalMap()
@@ -136,20 +179,20 @@ class MapController(QObject):
                 return
                 
             orig_map = cv2.imread(original_pgm_path, cv2.IMREAD_GRAYSCALE)
+            if orig_map is None:
+                print(f"Error: Could not read original map at {original_pgm_path}")
+                return
+
+            # Ensure gray_for_merge matches original map size
+            if gray_for_merge.shape[0] != orig_map.shape[0] or gray_for_merge.shape[1] != orig_map.shape[1]:
+                gray_for_merge = cv2.resize(gray_for_merge, (orig_map.shape[1], orig_map.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+            # 3. Apply overlay (anything not 127 is a change)
+            mask = (gray_for_merge != 127)
+            orig_map[mask] = gray_for_merge[mask]
             
-            # Composite (overlay_img has alpha channel: index 3)
-            alpha_channel = overlay_img[:, :, 3]
-            mask = alpha_channel > 0
-            
-            # We want to map black to 0 (obstacle) and white to 255 (free)
-            # Typically overlay_img is RGB, index 0,1,2.
-            # Convert overlay RGB to grayscale for merging
-            gray_overlay = cv2.cvtColor(overlay_img[:, :, :3], cv2.COLOR_BGR2GRAY)
-            
-            merged_map = orig_map.copy()
-            merged_map[mask] = gray_overlay[mask]
-            
-            cv2.imwrite(str(merged_path), merged_map)
+            # 4. Save merged map
+            cv2.imwrite(str(merged_path), orig_map)
             print(f"Saved merged map to: {merged_path}")
             
             # 3. Create/update YAML metadata
@@ -158,6 +201,7 @@ class MapController(QObject):
             # Generate the ROS-compatible YAML
             yaml_data = {
                 "image": "merged_map.pgm",
+
                 "resolution": proj_resolution,
                 "origin": self._origin if self._origin else [0.0, 0.0, 0.0],
                 "negate": 0,
@@ -175,7 +219,7 @@ class MapController(QObject):
                 with open(mepro_path, 'r') as f:
                     mepro_data = json.load(f)
                 
-                mepro_data["edited_overlay"] = str(overlay_path)
+                mepro_data["edited_overlay"] = str(edit_layer_path)
                 mepro_data["merged_map"] = str(merged_path)
                 
                 with open(mepro_path, 'w') as f:
@@ -218,15 +262,31 @@ class MapController(QObject):
             
             if b64 and layerId:
                 try:
+                    if "," not in b64:
+                        print(f"Failed to save layer {layerId}: Invalid base64 data")
+                        continue
+
                     header, encoded = b64.split(",", 1)
                     img_data = base64.b64decode(encoded)
                     
                     # Open with PIL
                     overlay_img = Image.open(io.BytesIO(img_data)).convert('RGBA')
-                    r, g, b, a = overlay_img.split()
-                    l_img = r # Get grayscale representation
                     
-                    out_path = project_dir / f"{layerId}.pgm"
+                    # Convert to numpy to handle alpha correctly
+                    img_np = np.array(overlay_img)
+                    r = img_np[:, :, 0]
+                    a = img_np[:, :, 3]
+                    
+                    # Create grayscale map where alpha=0 is white(255)
+                    # For Keepout, black is drawn where zone is.
+                    gray_np = r.copy()
+                    gray_np[a == 0] = 255
+                    
+                    l_img = Image.fromarray(gray_np)
+                    
+                    # Use name as filename, sanitized
+                    safe_name = "".join([c for c in name if c.isalnum() or c in (' ', '.', '_')]).strip().replace(' ', '_')
+                    out_path = project_dir / f"{safe_name}.pgm"
                     l_img.save(str(out_path))
                     layer_meta["file"] = str(out_path)
                     print(f"Saved layer '{name}' to {out_path}")
@@ -234,6 +294,19 @@ class MapController(QObject):
                     print(f"Failed to save layer {layerId}: {e}")
             
             saved_layers_meta.append(layer_meta)
+            
+        # Cleanup: Delete any .pgm files that are no longer in the layers list
+        # (Excluding special files: original_map.pgm, merged_map.pgm)
+        try:
+            active_filenames = [Path(m["file"]).name for m in saved_layers_meta if m.get("file")]
+            special_files = ["original_map.pgm", "merged_map.pgm"]
+            
+            for pgm_file in project_dir.glob("*.pgm"):
+                if pgm_file.name not in active_filenames and pgm_file.name not in special_files:
+                    print(f"Deleting removed layer file: {pgm_file}")
+                    pgm_file.unlink()
+        except Exception as e:
+            print(f"Error during layer file cleanup: {e}")
             
         # Tell project manager to update mepro with layers and timestamps
         self._project_manager.updateMeproLayers(saved_layers_meta)

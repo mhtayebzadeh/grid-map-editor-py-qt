@@ -9,6 +9,10 @@ from controllers.project_manager import ProjectManager
 
 if __name__ == "__main__":
     app = QGuiApplication(sys.argv)
+    app.setOrganizationName("MapEditorOrg")
+    app.setOrganizationDomain("mapeditor.org")
+    app.setApplicationName("OccupancyGridMapEditor")
+    
     engine = QQmlApplicationEngine()
     
     # 1. Register Image Provider

@@ -8,6 +8,7 @@ Rectangle {
     color: "#1e2329"
 
     property int currentTab: 0
+    property bool autoSaveEnabled: projectTab ? projectTab.autoSave : false
 
     ColumnLayout {
         anchors.fill: parent
@@ -74,6 +75,13 @@ Rectangle {
             currentIndex: sidePanelRoot.currentTab
 
             ProjectTab {
+                id: projectTab
+                projectName: root.projectName
+                projectPath: root.projectPath
+                robotTopic: root.slamRobotTopic
+                mapTopic: root.slamMapTopic
+                mappingParam: root.slamMappingEnabledParam
+                
                 onSaveRequested: {
                     if (typeof root.saveProject === "function") {
                         root.saveProject()

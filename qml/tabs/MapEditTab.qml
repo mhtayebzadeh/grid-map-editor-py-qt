@@ -45,15 +45,7 @@ Item {
 
         Item { Layout.fillHeight: true }
 
-        Rectangle {
-            Layout.fillWidth: true; height: 40; color: "#16a34a"; radius: 6
-            Text { anchors.centerIn: parent; text: "Save Merged Map"; color: "white"; font.pixelSize: 14; font.bold: true }
-            MouseArea { 
-                anchors.fill: parent
-                onClicked: {
-                    root.requestSaveMapEdits();
-                }
-            }
-        }
+        Item { Layout.fillHeight: true }
     }
 }
+

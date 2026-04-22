@@ -13,11 +13,17 @@ Rectangle {
     property string projectName: ""
     property string projectPath: ""
 
+    // SLAM Topics (Persisted via Settings)
+    property string slamRobotTopic: ""
+    property string slamMapTopic: ""
+    property string slamMappingEnabledParam: ""
+
     // Global UI State
     property string activeMode: "project" // "project", "map-edit", "layers", "gates"
     
     // Map Edit State
     property string currentMapEditTool: "obstacle" // "obstacle", "free", "revert"
+    property string editLayerPath: ""
     property int brushSize: 10
 
     // Layer State
@@ -39,8 +45,28 @@ Rectangle {
     ListModel {
         id: layersModel
         Component.onCompleted: {
-            layersModel.append({ "layerId": "layer_" + Date.now(), "name": "Keepout", "colorStr": "#ef4444", "opacity": 0.70, "layerVisible": true });
+            if (!root.isSlamMode && projectManager.isLoaded) {
+                let layers = projectManager.getLayers();
+                if (layers && layers.length > 0) {
+                    layersModel.clear();
+                    for (let i = 0; i < layers.length; i++) {
+                        layersModel.append({
+                            "layerId": layers[i].layerId,
+                            "name": layers[i].name,
+                            "colorStr": layers[i].colorStr,
+                            "opacity": layers[i].opacity,
+                            "layerVisible": layers[i].visible,
+                            "filePath": layers[i].file || ""
+                        });
+                    }
+                } else {
+                    layersModel.append({ "layerId": "layer_" + Date.now(), "name": "Keepout", "colorStr": "#ef4444", "opacity": 0.70, "layerVisible": true, "filePath": "" });
+                }
+            } else {
+                layersModel.append({ "layerId": "layer_" + Date.now(), "name": "Keepout", "colorStr": "#ef4444", "opacity": 0.70, "layerVisible": true, "filePath": "" });
+            }
             root.activeLayerId = layersModel.get(0).layerId;
+            root.editLayerPath = projectManager.getEditedOverlay();
         }
     }
 
@@ -91,6 +117,19 @@ Rectangle {
         MapCanvas {
             id: mapCanvas
             SplitView.fillWidth: true
+            editLayerPath: root.editLayerPath
+        }
+    }
+
+    Timer {
+        id: autoSaveTimer
+        interval: 20000
+        running: sidePanel.autoSaveEnabled
+        repeat: true
+        onTriggered: {
+            console.log("Auto-saving project...")
+            root.saveProject()
         }
     }
 }
+

@@ -32,6 +32,13 @@ Rectangle {
     property real previewToY: 0
     property bool showingPreview: false
     property var previewPolyPts: []
+    property string editLayerPath: ""
+
+    onEditLayerPathChanged: {
+        if (editLayerPath && (mapController ? mapController.mapWidth : 0) > 0) {
+            editCanvas.loadImage("file://" + editLayerPath);
+        }
+    }
 
     
     // Collect layer canvas data as base64 PNG strings
@@ -62,8 +69,9 @@ Rectangle {
     }
 
     function saveCanvasOverlay() {
-        return ""; // Fallback disabled to prevent errors, since we use layers now
+        return editCanvas.toDataURL("image/png");
     }
+
 
 
     function updateScaleIndicator() {
@@ -211,6 +219,18 @@ Rectangle {
                         pendingDraws = [];
                     }
                     
+                    onImageLoaded: {
+                        var ctx = getContext("2d");
+                        ctx.drawImage("file://" + mapCanvasRoot.editLayerPath, 0, 0);
+                        requestPaint();
+                    }
+
+                    onAvailableChanged: {
+                        if (available && mapCanvasRoot.editLayerPath) {
+                            loadImage("file://" + mapCanvasRoot.editLayerPath);
+                        }
+                    }
+
                     function queueDraw(tool, size, x1, y1, x2, y2) {
                         pendingDraws.push({tool: tool, size: size, x1: x1, y1: y1, x2: x2, y2: y2});
                         requestPaint();
@@ -231,6 +251,21 @@ Rectangle {
                         visible: model.layerVisible && (mapController ? mapController.mapWidth : 0) > 0
                         opacity: model.opacity
 
+                        Image {
+                            id: layerLoader
+                            source: model.filePath ? "image://map_provider/layer?path=" + model.filePath : ""
+                            visible: false
+                            onStatusChanged: {
+                                if (status === Image.Ready && dataCanvas.available) {
+                                    var ctx = dataCanvas.getContext("2d");
+                                    ctx.globalCompositeOperation = "copy";
+                                    ctx.drawImage(layerLoader, 0, 0);
+                                    ctx.globalCompositeOperation = "source-over";
+                                    displayCanvas.requestPaint();
+                                }
+                            }
+                        }
+
                         // Invisible Offscreen Canvas for pure grayscale values (for rendering out accurately)
                         Canvas {
                             id: dataCanvas
@@ -241,12 +276,19 @@ Rectangle {
                             antialiasing: false
                             smooth: false
                             visible: false
-
+                            
                             onAvailableChanged: {
                                 if (available) {
                                     var ctx = getContext("2d");
                                     ctx.fillStyle = "rgba(0,0,0,0)";
                                     ctx.fillRect(0, 0, width, height);
+                                    
+                                    if (layerLoader.status === Image.Ready) {
+                                        ctx.globalCompositeOperation = "copy";
+                                        ctx.drawImage(layerLoader, 0, 0);
+                                        ctx.globalCompositeOperation = "source-over";
+                                        displayCanvas.requestPaint();
+                                    }
                                 }
                             }
                         }
@@ -338,8 +380,8 @@ Rectangle {
                 Canvas {
                     id: previewCanvas
                     anchors.fill: parent
-                    canvasSize: Qt.size(mapController.mapWidth > 0 ? mapController.mapWidth : 600,
-                                       mapController.mapHeight > 0 ? mapController.mapHeight : 400)
+                    canvasSize: Qt.size((mapController ? mapController.mapWidth : 0) > 0 ? mapController.mapWidth : 600,
+                                       (mapController ? mapController.mapHeight : 0) > 0 ? mapController.mapHeight : 400)
                     renderStrategy: Canvas.Cooperative
                     antialiasing: false
                     smooth: false
@@ -356,7 +398,6 @@ Rectangle {
 
                         ctx.strokeStyle = color;
                         ctx.lineWidth = sz;
-                        ctx.setLineDash([Math.max(4, sz * 2), Math.max(4, sz * 2)]);
 
                         if (root.currentLayerTool === "line") {
                             ctx.beginPath();

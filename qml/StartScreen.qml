@@ -2,12 +2,20 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import Qt.labs.settings
 
 Rectangle {
     id: root
     color: "#1a1e24"
 
-    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution)
+    Settings {
+        category: "SlamTopics"
+        property alias robotTopic: slamRobotTopicField.text
+        property alias mapTopic: slamMapTopicField.text
+        property alias mappingEnabledParam: slamMappingEnabledParamField.text
+    }
+
+    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution, string robotTopic, string mapTopic, string mappingParam)
     property bool isEditMode: true
 
     Rectangle {
@@ -311,7 +319,7 @@ Rectangle {
                     palette.buttonText: "white"
                     background: Rectangle { color: "#22c55e"; radius: 4 }
                     onClicked: {
-                        root.startEditor(true, slamProjNameField.text, "", "", "", "")
+                        root.startEditor(true, slamProjNameField.text, "", "", "", "", slamRobotTopicField.text, slamMapTopicField.text, slamMappingEnabledParamField.text)
                     }
                 }
             }
@@ -346,7 +354,7 @@ Rectangle {
             let pgmFile = mapFileDialog.currentFile ? mapFileDialog.currentFile.toString() : ""
             
             if(projectManager.createProject(projNameField.text, currentFolder.toString(), pgmFile, yamlFile, resolutionField.text)) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString())
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamRobotTopicField.text, slamMapTopicField.text, slamMappingEnabledParamField.text)
             }
         }
     }
@@ -357,7 +365,7 @@ Rectangle {
         nameFilters: ["Map Project (*.mepro)"]
         onAccepted: {
             if (projectManager.openProject(currentFile.toString())) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString())
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamRobotTopicField.text, slamMapTopicField.text, slamMappingEnabledParamField.text)
             }
         }
     }
