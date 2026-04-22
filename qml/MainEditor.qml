@@ -25,6 +25,18 @@ Rectangle {
     property string activeLayerId: ""
     property int layerDrawValue: 0
 
+    // Derived: color of the currently active layer (used for cursor tint)
+    property string activeLayerColor: {
+        for (var i = 0; i < layersModel.count; i++) {
+            if (layersModel.get(i).layerId === activeLayerId)
+                return layersModel.get(i).colorStr;
+        }
+        return "#ef4444";
+    }
+
+    // Signal emitted to layer canvases to commit a draw operation
+    signal doLayerDraw(string layerId, var points, real drawValue, string tool, int size)
+
     ListModel {
         id: layersModel
         Component.onCompleted: {
@@ -36,6 +48,24 @@ Rectangle {
     function requestSaveMapEdits() {
         let b64 = mapCanvas.saveCanvasOverlay();
         mapController.saveMergedMap(b64);
+    }
+
+    // Collect all layer canvas data and send to Python to persist
+    function saveProject() {
+        let layerDataList = mapCanvas.getLayerDataUrls();
+        let layerMetaList = [];
+        for (let i = 0; i < layersModel.count; i++) {
+            let layer = layersModel.get(i);
+            layerMetaList.push({
+                "layerId": layer.layerId,
+                "name": layer.name,
+                "colorStr": layer.colorStr,
+                "opacity": layer.opacity,
+                "visible": layer.layerVisible,
+                "b64": (i < layerDataList.length) ? layerDataList[i].b64 : ""
+            });
+        }
+        mapController.saveProjectFull(layerMetaList);
     }
 
     SplitView {
