@@ -5,7 +5,9 @@ import "./components"
 
 Rectangle {
     id: root
-    color: "#1a1e24" // Matches the main app background dark color
+    color: "#1a1e24"
+
+    signal doLayerDraw(string layerId, var points, real drawValue, string tool, real size) // Matches the main app background dark color
 
     property bool isSlamMode: false
     property string projectName: ""

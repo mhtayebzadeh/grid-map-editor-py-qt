@@ -6,6 +6,8 @@ Rectangle {
     id: mapCanvasRoot
     color: "#323842"
 
+    signal doLayerDraw(string layerId, var points, real drawValue, string tool, real size)
+
     property int mapReloadTicker: 0
     property real currentScale: 1.0
     property real mapRotation: 0.0
@@ -56,8 +58,8 @@ Rectangle {
 
 
     function updateScaleIndicator() {
-        if (!mapController.resolution) return;
-        let pxPerMeter = (1.0 / mapController.resolution) * currentScale;
+        if (!(mapController ? mapController.resolution : 0)) return;
+        let pxPerMeter = (1.0 / (mapController ? mapController.resolution : 0)) * currentScale;
         let units = [0.1, 0.5, 1, 2, 5, 10, 20, 50, 100, 500];
         let chosenUnit = 10;
         for (let i = 0; i < units.length; i++) {
@@ -96,21 +98,21 @@ Rectangle {
     }
 
     function fitMap() {
-        if (mapController.mapWidth === 0) return;
+        if ((mapController ? mapController.mapWidth : 0) === 0) return;
         
-        let rw = isRotated() ? mapController.mapHeight : mapController.mapWidth;
-        let rh = isRotated() ? mapController.mapWidth : mapController.mapHeight;
+        let rw = isRotated() ? (mapController ? mapController.mapHeight : 0) : (mapController ? mapController.mapWidth : 0);
+        let rh = isRotated() ? (mapController ? mapController.mapWidth : 0) : (mapController ? mapController.mapHeight : 0);
 
         let scaleX = viewport.width / rw;
         let scaleY = viewport.height / rh;
         currentScale = Math.min(scaleX, scaleY) * 0.9;
         
-        viewport.panX = (viewport.width - (mapController.mapWidth * currentScale)) / 2;
-        viewport.panY = (viewport.height - (mapController.mapHeight * currentScale)) / 2;
+        viewport.panX = (viewport.width - ((mapController ? mapController.mapWidth : 0) * currentScale)) / 2;
+        viewport.panY = (viewport.height - ((mapController ? mapController.mapHeight : 0) * currentScale)) / 2;
     }
 
     function focusRobot() {
-        if (mapController.mapWidth === 0) return;
+        if ((mapController ? mapController.mapWidth : 0) === 0) return;
 
         let pt = robotMarker.mapToItem(mapContainer, robotMarker.width/2, robotMarker.height/2);
         viewport.panX = viewport.width / 2 - pt.x * currentScale;
@@ -131,8 +133,8 @@ Rectangle {
             y: viewport.panY
             scale: currentScale
             transformOrigin: Item.TopLeft
-            width: mapController.mapWidth > 0 ? mapController.mapWidth : 600
-            height: mapController.mapHeight > 0 ? mapController.mapHeight : 400
+            width: (mapController ? mapController.mapWidth : 0) > 0 ? (mapController ? mapController.mapWidth : 0) : 600
+            height: (mapController ? mapController.mapHeight : 0) > 0 ? (mapController ? mapController.mapHeight : 0) : 400
 
             Item {
                 id: mapSpace
@@ -150,24 +152,82 @@ Rectangle {
                     asynchronous: false
                     fillMode: Image.PreserveAspectFit
                     smooth: false 
-                    visible: mapController.mapWidth > 0
+                    visible: (mapController ? mapController.mapWidth : 0) > 0
                 }
 
                 // Layer Canvases
+                
+                Canvas {
+                    id: editCanvas
+                    anchors.fill: parent
+                    visible: (mapController ? mapController.mapWidth : 0) > 0 && (mapController ? mapController.mapHeight : 0) > 0
+                    
+                    
+                    canvasSize: Qt.size((mapController ? mapController.mapWidth : 0), (mapController ? mapController.mapHeight : 0))
+                    
+                    renderTarget: Canvas.Image
+                    antialiasing: false
+                    smooth: false
+                    
+                    property var pendingDraws: []
+                    
+                    onPaint: {
+                        var ctx = getContext("2d");
+                        
+                        // Process pending draws
+                        for (var idx = 0; idx < pendingDraws.length; idx++) {
+                            var draw = pendingDraws[idx];
+                            var tool = draw.tool;
+                            var size = draw.size;
+                            var x1 = draw.x1, y1 = draw.y1, x2 = draw.x2, y2 = draw.y2;
+                            
+                            if (tool === "obstacle" || tool === "free" || tool === "revert") {
+                                ctx.strokeStyle = (tool === "obstacle") ? "black" : (tool === "free") ? "white" : "rgba(0,0,0,0)";
+                                if (tool === "revert") {
+                                    ctx.globalCompositeOperation = "destination-out";
+                                    ctx.strokeStyle = "black"; // alpha matters but dest-out ignores color
+                                } else {
+                                    ctx.globalCompositeOperation = "source-over";
+                                }
+                                
+                                ctx.lineWidth = size;
+                                ctx.lineCap = "square"; // Map editing uses square brush typically
+                            
+                                ctx.beginPath();
+                                ctx.moveTo(x1, y1);
+                                ctx.lineTo(x2, y2);
+                                ctx.stroke();
+                            }
+                        }
+                        pendingDraws = [];
+                    }
+                    
+                    function queueDraw(tool, size, x1, y1, x2, y2) {
+                        pendingDraws.push({tool: tool, size: size, x1: x1, y1: y1, x2: x2, y2: y2});
+                        requestPaint();
+                    }
+                    
+                    function clear() {
+                        var ctx = getContext("2d");
+                        ctx.clearRect(0, 0, width, height);
+                        pendingDraws = [];
+                    }
+                }
+
                 Repeater {
                     id: layerRepeater
                     model: layersModel
                     Item {
                         anchors.fill: parent
-                        visible: model.layerVisible && mapController.mapWidth > 0
+                        visible: model.layerVisible && (mapController ? mapController.mapWidth : 0) > 0
                         opacity: model.opacity
 
                         // Invisible Offscreen Canvas for pure grayscale values (for rendering out accurately)
                         Canvas {
                             id: dataCanvas
                             anchors.fill: parent
-                            canvasSize: Qt.size(mapController.mapWidth, mapController.mapHeight)
-                            renderStrategy: Canvas.Threaded
+                            canvasSize: Qt.size((mapController ? mapController.mapWidth : 0), (mapController ? mapController.mapHeight : 0))
+                            
                             renderTarget: Canvas.Image
                             antialiasing: false
                             smooth: false
@@ -186,8 +246,8 @@ Rectangle {
                         Canvas {
                             id: displayCanvas
                             anchors.fill: parent
-                            canvasSize: Qt.size(mapController.mapWidth, mapController.mapHeight)
-                            renderStrategy: Canvas.Threaded
+                            canvasSize: Qt.size((mapController ? mapController.mapWidth : 0), (mapController ? mapController.mapHeight : 0))
+                            
                             renderTarget: Canvas.Image
                             antialiasing: false
                             smooth: false
@@ -206,9 +266,11 @@ Rectangle {
                         }
 
                         Connections {
-                            target: root
+                            target: mapCanvasRoot
                             function onDoLayerDraw(layerId, points, drawValue, tool, size) {
+                                console.log("onDoLayerDraw received! model.layerId:", model.layerId, "target:", layerId);
                                 if (model.layerId !== layerId) return;
+                                console.log("Matched layer! points:", JSON.stringify(points), "tool:", tool);
                                 
                                 var ctx = dataCanvas.getContext("2d");
                                 ctx.imageSmoothingEnabled = false;
@@ -266,6 +328,52 @@ Rectangle {
 
         
         
+        
+                Text {
+                    anchors.centerIn: parent
+                    text: "[No Map Loaded]"
+                    color: "white"
+                    visible: (mapController ? mapController.mapWidth : 0) === 0
+                    rotation: -mapRotation
+                }
+                
+                Rectangle {
+                    id: robotMarker
+                    width: 10 / currentScale
+                    height: 10 / currentScale
+                    color: "red"
+                    transformOrigin: Item.Center
+                    
+                    property real px: (mapController ? mapController.mapWidth : 0) > 0 ? ((robotHandler ? robotHandler.x : 0) - (mapController ? mapController.origin : [0,0,0])[0]) / (mapController ? mapController.resolution : 0) : 0
+                    property real py: (mapController ? mapController.mapHeight : 0) > 0 ? (mapController ? mapController.mapHeight : 0) - (((robotHandler ? robotHandler.y : 0) - (mapController ? mapController.origin : [0,0,0])[1]) / (mapController ? mapController.resolution : 0)) : 0
+
+                    x: px - (width / 2)
+                    y: py - (height / 2)
+                    rotation: -(robotHandler ? robotHandler.theta : 0) * (180 / Math.PI)
+                    visible: (mapController ? mapController.mapWidth : 0) > 0
+                }
+
+                Rectangle {
+                    id: brushPreview
+                    property real logicalSize: Math.max(1, Math.round(root.brushSize))
+                    width: logicalSize
+                    height: logicalSize
+                    radius: 0
+                    color: (root.currentMapEditTool === "obstacle" || root.currentLayerTool === "eraser") ? "rgba(0,0,0,0.5)" : 
+                           (root.currentMapEditTool === "free") ? "rgba(255,255,255,0.5)" : "rgba(59, 130, 246, 0.5)"
+                    border.color: "#3b82f6"
+                    border.width: 2 / currentScale
+                    visible: panZoomArea.containsMouse && (mapController ? mapController.mapWidth : 0) > 0 && !panZoomArea.pressed && (root.activeMode === "map-edit" || root.activeMode === "layers")
+                    // Note editCanvas.previewX doesn't exist anymore, so we just use mouseMapPxX
+                    x: Math.floor(mouseMapPxX) - Math.floor(logicalSize / 2)
+                    y: Math.floor(mouseMapPxY) - Math.floor(logicalSize / 2)
+                    z: 999
+                }
+
+        
+        } // mapSpace
+        } // mapContainer
+
         MouseArea {
             id: panZoomArea
             anchors.fill: parent
@@ -283,28 +391,37 @@ Rectangle {
                     isFollowingRobot = false
                     lastPanX = mouse.x
                     lastPanY = mouse.y
-                } else if (mouse.button === Qt.LeftButton && root.activeMode === "layers" && mapController.mapWidth > 0 && root.activeLayerId !== "") {
-                    // Start Layer draw
-                    let pt = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
+                } else if (mouse.button === Qt.LeftButton && (mapController ? mapController.mapWidth : 0) > 0) {
+                    let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
+                    let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
                     
-                    if (root.currentLayerTool === "pencil" || root.currentLayerTool === "eraser") {
-                        isDrawing = true
-                        lastDrawPt = pt
-                        root.doLayerDraw(root.activeLayerId, [lastDrawPt, pt], root.layerDrawValue, root.currentLayerTool, root.brushSize)
-                    } else if (root.currentLayerTool === "line") {
-                        isDrawing = true
-                        lastDrawPt = pt // start point
-                    } else if (root.currentLayerTool === "poly") {
-                        polyPts.push(pt)
+                    if (root.activeMode === "layers" && root.activeLayerId !== "") {
+                        if (root.currentLayerTool === "pencil" || root.currentLayerTool === "eraser") {
+                            isDrawing = true
+                            lastDrawPt = pt
+                            mapCanvasRoot.doLayerDraw(root.activeLayerId, [lastDrawPt, pt], root.layerDrawValue, root.currentLayerTool, root.brushSize)
+                        } else if (root.currentLayerTool === "line") {
+                            isDrawing = true
+                            lastDrawPt = pt // start point
+                        } else if (root.currentLayerTool === "poly") {
+                            polyPts.push(pt)
+                        }
+                    } else if (root.activeMode === "map-edit") {
+                        if (root.currentMapEditTool === "obstacle" || root.currentMapEditTool === "free" || root.currentMapEditTool === "revert") {
+                            isDrawing = true
+                            lastDrawPt = pt
+                            editCanvas.queueDraw(root.currentMapEditTool, root.brushSize, lastDrawPt.x, lastDrawPt.y, pt.x, pt.y)
+                        }
                     }
                 }
             }
             
             onReleased: (mouse) => {
-                if (mouse.button === Qt.LeftButton && isDrawing && root.activeMode === "layers") {
-                    let pt = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
-                    if (root.currentLayerTool === "line") {
-                        root.doLayerDraw(root.activeLayerId, [lastDrawPt, pt], root.layerDrawValue, root.currentLayerTool, root.brushSize)
+                if (mouse.button === Qt.LeftButton && isDrawing) {
+                    let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
+                    let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
+                    if (root.activeMode === "layers" && root.currentLayerTool === "line") {
+                        mapCanvasRoot.doLayerDraw(root.activeLayerId, [lastDrawPt, pt], root.layerDrawValue, root.currentLayerTool, root.brushSize)
                     }
                     isDrawing = false
                 }
@@ -313,7 +430,7 @@ Rectangle {
             onDoubleClicked: (mouse) => {
                 if (mouse.button === Qt.LeftButton && root.activeMode === "layers" && root.currentLayerTool === "poly") {
                     if (polyPts.length > 2) {
-                        root.doLayerDraw(root.activeLayerId, polyPts, root.layerDrawValue, "poly", root.brushSize)
+                        mapCanvasRoot.doLayerDraw(root.activeLayerId, polyPts, root.layerDrawValue, "poly", root.brushSize)
                     }
                     polyPts = []
                 }
@@ -325,19 +442,26 @@ Rectangle {
                     viewport.panY += (mouse.y - lastPanY)
                     lastPanX = mouse.x
                     lastPanY = mouse.y
-                } else if (isDrawing && root.activeMode === "layers" && mapController.mapWidth > 0 && (root.currentLayerTool === "pencil" || root.currentLayerTool === "eraser")) {
-                    let pt = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
-                    root.doLayerDraw(root.activeLayerId, [lastDrawPt, pt], root.layerDrawValue, root.currentLayerTool, root.brushSize)
-                    lastDrawPt = pt
+                } else if (isDrawing && (mapController ? mapController.mapWidth : 0) > 0) {
+                    let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
+                    let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
+                    if (root.activeMode === "layers" && root.activeLayerId !== "" && (root.currentLayerTool === "pencil" || root.currentLayerTool === "eraser")) {
+                        mapCanvasRoot.doLayerDraw(root.activeLayerId, [lastDrawPt, pt], root.layerDrawValue, root.currentLayerTool, root.brushSize)
+                        lastDrawPt = pt
+                    } else if (root.activeMode === "map-edit" && (root.currentMapEditTool === "obstacle" || root.currentMapEditTool === "free" || root.currentMapEditTool === "revert")) {
+                        editCanvas.queueDraw(root.currentMapEditTool, root.brushSize, lastDrawPt.x, lastDrawPt.y, pt.x, pt.y)
+                        lastDrawPt = pt
+                    }
                 }
 
-                let pt = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
+                let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
+                    let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
                 mouseMapPxX = pt.x
                 mouseMapPxY = pt.y
                 
-                if (mapController.resolution > 0) {
-                    mouseMapMeterX = mapController.origin[0] + pt.x * mapController.resolution
-                    mouseMapMeterY = mapController.origin[1] + (mapController.mapHeight - pt.y) * mapController.resolution
+                if ((mapController ? mapController.resolution : 0) > 0) {
+                    mouseMapMeterX = (mapController ? mapController.origin : [0,0,0])[0] + pt.x * (mapController ? mapController.resolution : 0)
+                    mouseMapMeterY = (mapController ? mapController.origin : [0,0,0])[1] + ((mapController ? mapController.mapHeight : 0) - pt.y) * (mapController ? mapController.resolution : 0)
                 }
             }
             
@@ -354,8 +478,7 @@ Rectangle {
                 }
             }
         }
-    }
-
+    } // viewport
 
 
     Rectangle {
@@ -445,6 +568,4 @@ Rectangle {
             Text { text: "M: " + mouseMapMeterX.toFixed(2) + ", " + mouseMapMeterY.toFixed(2); color: "white"; font.pixelSize: 12; font.family: "monospace" }
         }
     }
-}
-}
 }
