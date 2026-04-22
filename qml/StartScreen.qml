@@ -12,10 +12,11 @@ Rectangle {
         category: "SlamTopics"
         property alias robotTopic: slamRobotTopicField.text
         property alias mapTopic: slamMapTopicField.text
+        property alias scanTopic: slamScanTopicField.text
         property alias mappingEnabledParam: slamMappingEnabledParamField.text
     }
 
-    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution, string robotTopic, string mapTopic, string mappingParam)
+    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution, string robotTopic, string mapTopic, string scanTopic, string mappingParam)
     property bool isEditMode: true
 
     Rectangle {
@@ -299,6 +300,19 @@ Rectangle {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 4
+                    Text { text: "Laser Scan Topic"; color: "#a0a5ab"; font.pixelSize: 12 }
+                    TextField {
+                        id: slamScanTopicField
+                        Layout.fillWidth: true
+                        text: "/scan"
+                        color: "white"
+                        background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
                     Text { text: "Mapping Enabled Param"; color: "#a0a5ab"; font.pixelSize: 12 }
                     TextField {
                         id: slamMappingEnabledParamField
@@ -319,7 +333,7 @@ Rectangle {
                     palette.buttonText: "white"
                     background: Rectangle { color: "#22c55e"; radius: 4 }
                     onClicked: {
-                        root.startEditor(true, slamProjNameField.text, "", "", "", "", slamRobotTopicField.text, slamMapTopicField.text, slamMappingEnabledParamField.text)
+                        root.startEditor(true, slamProjNameField.text, "", "", "", "", slamRobotTopicField.text, slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text)
                     }
                 }
             }
@@ -353,8 +367,8 @@ Rectangle {
             let yamlFile = yamlFileDialog.currentFile ? yamlFileDialog.currentFile.toString() : ""
             let pgmFile = mapFileDialog.currentFile ? mapFileDialog.currentFile.toString() : ""
             
-            if(projectManager.createProject(projNameField.text, currentFolder.toString(), pgmFile, yamlFile, resolutionField.text)) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamRobotTopicField.text, slamMapTopicField.text, slamMappingEnabledParamField.text)
+            if(projectManager.createProject(projNameField.text, currentFolder.toString(), pgmFile, yamlFile, resolutionField.text, slamRobotTopicField.text, slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text)) {
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), projectManager.robotTopic, projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam)
             }
         }
     }
@@ -365,7 +379,7 @@ Rectangle {
         nameFilters: ["Map Project (*.mepro)"]
         onAccepted: {
             if (projectManager.openProject(currentFile.toString())) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamRobotTopicField.text, slamMapTopicField.text, slamMappingEnabledParamField.text)
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), projectManager.robotTopic, projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam)
             }
         }
     }

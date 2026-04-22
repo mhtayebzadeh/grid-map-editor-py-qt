@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Shapes 1.15
 
 Rectangle {
     id: mapCanvasRoot
@@ -440,20 +441,93 @@ Rectangle {
                     rotation: -mapRotation
                 }
                 
-                Rectangle {
+                Item {
                     id: robotMarker
-                    width: 10 / currentScale
-                    height: 10 / currentScale
-                    color: "red"
-                    transformOrigin: Item.Center
+                    // Use a fixed size for the container to maintain high resolution
+                    width: 24; height: 24
+                    // Position it using logical map coordinates
+                    x: px - (width / 2)
+                    y: py - (height / 2)
+                    // Use scale to keep the marker visually the same size on screen while zooming
+                    scale: 1.0 / currentScale
                     
                     property real px: (mapController ? mapController.mapWidth : 0) > 0 ? ((robotHandler ? robotHandler.x : 0) - (mapController ? mapController.origin : [0,0,0])[0]) / (mapController ? mapController.resolution : 0) : 0
                     property real py: (mapController ? mapController.mapHeight : 0) > 0 ? (mapController ? mapController.mapHeight : 0) - (((robotHandler ? robotHandler.y : 0) - (mapController ? mapController.origin : [0,0,0])[1]) / (mapController ? mapController.resolution : 0)) : 0
 
-                    x: px - (width / 2)
-                    y: py - (height / 2)
                     rotation: -(robotHandler ? robotHandler.theta : 0) * (180 / Math.PI)
                     visible: (mapController ? mapController.mapWidth : 0) > 0
+
+                    // Laser Scan Visualization
+                    Canvas {
+                        id: laserCanvas
+                        anchors.centerIn: parent
+                        // Fixed large size for the scan field
+                        width: 2000; height: 2000
+                        z: -1
+                        
+                        Connections {
+                            target: robotHandler
+                            function onScanChanged() { laserCanvas.requestPaint() }
+                        }
+                        
+                        onPaint: {
+                            var ctx = getContext("2d");
+                            ctx.clearRect(0, 0, width, height);
+                            let scan = robotHandler.scanData;
+                            if (!scan || scan.length === 0) return;
+                            let res = mapController ? mapController.resolution : 0.05;
+                            let cx = width / 2;
+                            let cy = height / 2;
+                            
+                            ctx.beginPath();
+                            ctx.strokeStyle = "rgba(0, 255, 128, 0.6)";
+                            ctx.lineWidth = 3 * currentScale; // Scale line width back up to be visible
+                            
+                            let step = 360 / scan.length;
+                            let first = true;
+                            for (let i = 0; i < scan.length; i++) {
+                                let dist = scan[i];
+                                if (dist <= 0.1 || dist > 30.0) continue; 
+                                let angle = (i * step - 90) * (Math.PI / 180);
+                                let lx = cx + (dist / res) * Math.cos(angle);
+                                let ly = cy + (dist / res) * Math.sin(angle);
+                                if (first) { ctx.moveTo(lx, ly); first = false; }
+                                else ctx.lineTo(lx, ly);
+                            }
+                            ctx.stroke();
+
+                            // Bolder points
+                            ctx.fillStyle = "#00ff80";
+                            for (let i = 0; i < scan.length; i += 2) { 
+                                let dist = scan[i];
+                                if (dist <= 0.1 || dist > 30.0) continue;
+                                let angle = (i * step - 90) * (Math.PI / 180);
+                                let lx = cx + (dist / res) * Math.cos(angle);
+                                let ly = cy + (dist / res) * Math.sin(angle);
+                                ctx.beginPath();
+                                ctx.arc(lx, ly, 3, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        }
+                    }
+
+                    // Robot Marker (Arrow) - Now using a high-res Shape for crisp edges
+                    Shape {
+                        anchors.fill: parent
+                        layer.enabled: true
+                        layer.samples: 4
+                        
+                        ShapePath {
+                            strokeColor: "white"
+                            strokeWidth: 2
+                            fillColor: "#ef4444"
+                            startX: 12; startY: 0
+                            PathLine { x: 24; y: 24 }
+                            PathLine { x: 12; y: 18 }
+                            PathLine { x: 0; y: 24 }
+                            PathLine { x: 12; y: 0 }
+                        }
+                    }
                 }
 
                 Rectangle {

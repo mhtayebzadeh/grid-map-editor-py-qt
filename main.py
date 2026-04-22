@@ -4,7 +4,7 @@ from pathlib import Path
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from controllers.map_provider import MapImageProvider, MapController
-from controllers.robot_handler import RobotHandler
+from controllers.ros_manager import ROSManager
 from controllers.project_manager import ProjectManager
 
 if __name__ == "__main__":
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # 2. Setup Controllers Context Properties
     project_manager = ProjectManager()
     map_controller = MapController(map_image_provider, project_manager)
-    robot_handler = RobotHandler()
+    robot_handler = ROSManager()
     
     context = engine.rootContext()
     context.setContextProperty("projectManager", project_manager)
@@ -36,4 +36,7 @@ if __name__ == "__main__":
     if not engine.rootObjects():
         sys.exit(-1)
         
+    # Cleanup on exit
+    app.aboutToQuit.connect(robot_handler.stop_ros)
+    
     sys.exit(app.exec())

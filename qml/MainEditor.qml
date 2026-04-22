@@ -16,7 +16,13 @@ Rectangle {
     // SLAM Topics (Persisted via Settings)
     property string slamRobotTopic: ""
     property string slamMapTopic: ""
+    property string slamScanTopic: ""
     property string slamMappingEnabledParam: ""
+
+    // Global properties used by sub-tabs
+    property string robotTopic: projectManager.isLoaded ? projectManager.robotTopic : slamRobotTopic
+    property string mapTopic: projectManager.isLoaded ? projectManager.mapTopic : slamMapTopic
+    property string scanTopic: projectManager.isLoaded ? projectManager.scanTopic : slamScanTopic
 
     // Global UI State
     property string activeMode: "project" // "project", "map-edit", "layers", "gates"
@@ -67,6 +73,10 @@ Rectangle {
             }
             root.activeLayerId = layersModel.get(0).layerId;
             root.editLayerPath = projectManager.getEditedOverlay();
+            
+            if (projectManager.isLoaded) {
+                robotHandler.start_ros(projectManager.robotTopic, projectManager.scanTopic);
+            }
         }
     }
 

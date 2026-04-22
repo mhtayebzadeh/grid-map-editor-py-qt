@@ -69,6 +69,20 @@ Item {
         ColumnLayout {
             spacing: 4
             Layout.fillWidth: true
+            Text { text: "Laser Scan Topic"; color: "#71717a"; font.pixelSize: 11; font.bold: true }
+            Rectangle { 
+                Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#1f2937"
+                clip: true
+                TextEdit { 
+                    anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
+                    text: root.scanTopic; color: "#e4e4e7"; font.pixelSize: 12; readOnly: true; selectByMouse: true; selectionColor: "#2563eb"
+                }
+            }
+        }
+
+        ColumnLayout {
+            spacing: 4
+            Layout.fillWidth: true
             Text { text: "Map Topic"; color: "#71717a"; font.pixelSize: 11; font.bold: true }
             Rectangle { 
                 Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#1f2937"
