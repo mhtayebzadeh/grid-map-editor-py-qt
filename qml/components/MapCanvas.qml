@@ -19,32 +19,41 @@ Rectangle {
     property real scaleLineWidth: 100
     property string scaleLineText: "10 m"
 
+    // Cursor overlay position (in viewport coordinates, unscaled)
+    property real _cursorVpX: 0
+    property real _cursorVpY: 0
+
+    // Preview state for line / polygon rubber-band
+    property real previewFromX: 0
+    property real previewFromY: 0
+    property real previewToX: 0
+    property real previewToY: 0
+    property bool showingPreview: false
+    property var previewPolyPts: []
+
     
-    // We fetch the inner Canvas data nodes by iterating Repeater children
+    // Collect layer canvas data as base64 PNG strings
     function getLayerDataUrls() {
         let results = [];
-        let items = layerRepeater.children; // Use the repeater id we'll add
-        for (let i = 0; i < items.length; i++) {
-            let layerItem = items[i];
-            if (layerItem && layerItem.visible !== undefined) {
-                // Find the dataCanvas (which we know is invisible)
-                let dataCanvas = null;
-                for (let j = 0; j < layerItem.children.length; j++) {
-                    if (layerItem.children[j].id === "dataCanvas" || (layerItem.children[j].visible === false && layerItem.children[j].canvasSize !== undefined)) {
-                        dataCanvas = layerItem.children[j];
-                        break;
-                    }
+        for (let i = 0; i < layerRepeater.count; i++) {
+            let layerItem = layerRepeater.itemAt(i);
+            if (!layerItem) continue;
+            // Find the invisible dataCanvas among children
+            let dataCanvas = null;
+            for (let j = 0; j < layerItem.children.length; j++) {
+                let child = layerItem.children[j];
+                if (child.visible === false && child.canvasSize !== undefined) {
+                    dataCanvas = child;
+                    break;
                 }
-                
-                if (dataCanvas) {
-                    let b64 = dataCanvas.toDataURL("image/png");
-                    // get layerId from model logic (requires mapping from layersModel or passing it in)
-                    results.push({
-                        b64: b64,
-                        layerId: layersModel.get(i).layerId,
-                        name: layersModel.get(i).name
-                    });
-                }
+            }
+            if (dataCanvas) {
+                let b64 = dataCanvas.toDataURL("image/png");
+                results.push({
+                    b64: b64,
+                    layerId: layersModel.get(i).layerId,
+                    name: layersModel.get(i).name
+                });
             }
         }
         return results;
@@ -263,6 +272,59 @@ Rectangle {
                     }
                 }
 
+                // Preview Canvas: rubber-band line/polygon shown before the draw is committed
+                Canvas {
+                    id: previewCanvas
+                    anchors.fill: parent
+                    canvasSize: Qt.size(mapController.mapWidth > 0 ? mapController.mapWidth : 600,
+                                       mapController.mapHeight > 0 ? mapController.mapHeight : 400)
+                    renderStrategy: Canvas.Cooperative
+                    antialiasing: false
+                    smooth: false
+                    visible: mapCanvasRoot.showingPreview && mapController.mapWidth > 0
+                    z: 50
+
+                    onPaint: {
+                        var ctx = getContext("2d");
+                        ctx.clearRect(0, 0, width, height);
+                        if (!mapCanvasRoot.showingPreview) return;
+
+                        var color = root.activeLayerColor || "#ef4444";
+                        var sz = Math.max(1, root.brushSize);
+
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = sz;
+                        ctx.setLineDash([Math.max(4, sz * 2), Math.max(4, sz * 2)]);
+
+                        if (root.currentLayerTool === "line") {
+                            ctx.beginPath();
+                            ctx.moveTo(mapCanvasRoot.previewFromX, mapCanvasRoot.previewFromY);
+                            ctx.lineTo(mapCanvasRoot.previewToX, mapCanvasRoot.previewToY);
+                            ctx.stroke();
+                        } else if (root.currentLayerTool === "poly") {
+                            var pts = mapCanvasRoot.previewPolyPts;
+                            if (pts.length > 0) {
+                                ctx.beginPath();
+                                ctx.moveTo(pts[0].x, pts[0].y);
+                                for (var i = 1; i < pts.length; i++) {
+                                    ctx.lineTo(pts[i].x, pts[i].y);
+                                }
+                                ctx.lineTo(mapCanvasRoot.previewToX, mapCanvasRoot.previewToY);
+                                ctx.stroke();
+                            }
+                        }
+                    }
+
+                    // Re-paint whenever any preview state changes
+                    Connections {
+                        target: mapCanvasRoot
+                        function onPreviewToXChanged() { previewCanvas.requestPaint(); }
+                        function onPreviewToYChanged() { previewCanvas.requestPaint(); }
+                        function onShowingPreviewChanged() { previewCanvas.requestPaint(); }
+                        function onPreviewPolyPtsChanged() { previewCanvas.requestPaint(); }
+                    }
+                }
+
 
         
         
@@ -294,8 +356,23 @@ Rectangle {
                     } else if (root.currentLayerTool === "line") {
                         isDrawing = true
                         lastDrawPt = pt // start point
+                        // Begin preview
+                        mapCanvasRoot.previewFromX = pt.x
+                        mapCanvasRoot.previewFromY = pt.y
+                        mapCanvasRoot.previewToX = pt.x
+                        mapCanvasRoot.previewToY = pt.y
+                        mapCanvasRoot.showingPreview = true
                     } else if (root.currentLayerTool === "poly") {
                         polyPts.push(pt)
+                        mapCanvasRoot.previewPolyPts = polyPts.slice()
+                        // Start preview at first point
+                        if (polyPts.length === 1) {
+                            mapCanvasRoot.previewFromX = pt.x
+                            mapCanvasRoot.previewFromY = pt.y
+                            mapCanvasRoot.previewToX = pt.x
+                            mapCanvasRoot.previewToY = pt.y
+                            mapCanvasRoot.showingPreview = true
+                        }
                     }
                 }
             }
@@ -305,6 +382,8 @@ Rectangle {
                     let pt = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
                     if (root.currentLayerTool === "line") {
                         root.doLayerDraw(root.activeLayerId, [lastDrawPt, pt], root.layerDrawValue, root.currentLayerTool, root.brushSize)
+                        // Clear preview
+                        mapCanvasRoot.showingPreview = false
                     }
                     isDrawing = false
                 }
@@ -316,6 +395,8 @@ Rectangle {
                         root.doLayerDraw(root.activeLayerId, polyPts, root.layerDrawValue, "poly", root.brushSize)
                     }
                     polyPts = []
+                    mapCanvasRoot.previewPolyPts = []
+                    mapCanvasRoot.showingPreview = false
                 }
             }
 
@@ -331,6 +412,18 @@ Rectangle {
                     lastDrawPt = pt
                 }
 
+                // Update rubber-band preview endpoint
+                if (root.activeMode === "layers") {
+                    let msPt = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
+                    if ((root.currentLayerTool === "line" && isDrawing) ||
+                        (root.currentLayerTool === "poly" && polyPts.length > 0)) {
+                        mapCanvasRoot.previewToX = msPt.x
+                        mapCanvasRoot.previewToY = msPt.y
+                        if (!mapCanvasRoot.showingPreview)
+                            mapCanvasRoot.showingPreview = true
+                    }
+                }
+
                 let pt = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
                 mouseMapPxX = pt.x
                 mouseMapPxY = pt.y
@@ -339,6 +432,11 @@ Rectangle {
                     mouseMapMeterX = mapController.origin[0] + pt.x * mapController.resolution
                     mouseMapMeterY = mapController.origin[1] + (mapController.mapHeight - pt.y) * mapController.resolution
                 }
+
+                // Track cursor position in viewport space for the colored cursor overlay
+                let vpPt = panZoomArea.mapToItem(viewport, mouse.x, mouse.y)
+                mapCanvasRoot._cursorVpX = vpPt.x
+                mapCanvasRoot._cursorVpY = vpPt.y
             }
             
             onWheel: (wheel) => {
@@ -445,6 +543,26 @@ Rectangle {
             Text { text: "M: " + mouseMapMeterX.toFixed(2) + ", " + mouseMapMeterY.toFixed(2); color: "white"; font.pixelSize: 12; font.family: "monospace" }
         }
     }
-}
-}
+
+    // Colored drawing cursor overlay – shown only in layers mode
+    Rectangle {
+        id: layerDrawCursor
+        visible: root.activeMode === "layers" && mapController.mapWidth > 0
+        width: Math.max(4, root.brushSize * currentScale)
+        height: Math.max(4, root.brushSize * currentScale)
+        x: mapCanvasRoot._cursorVpX - width / 2
+        y: mapCanvasRoot._cursorVpY - height / 2
+        color: "transparent"
+        border.color: root.activeLayerColor
+        border.width: 2
+        radius: 2
+        z: 200
+        // Small center dot for precision
+        Rectangle {
+            anchors.centerIn: parent
+            width: 3; height: 3
+            color: root.activeLayerColor
+            radius: 2
+        }
+    }
 }
