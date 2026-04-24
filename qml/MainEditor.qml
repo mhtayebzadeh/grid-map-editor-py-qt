@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import "./components"
 
 Rectangle {
@@ -34,6 +35,60 @@ Rectangle {
     property string currentMapEditTool: "obstacle" // "obstacle", "free", "revert"
     property string editLayerPath: ""
     property int brushSize: 10
+
+    // Gates State
+    property var pendingGateModel: null
+    property string pendingGateCategoryId: ""
+    property string activeGateId: ""
+    ListModel { id: standardGatesModel }
+    ListModel { id: homeGatesModel }
+    ListModel { id: chargeStationsModel }
+
+    property var gateCategories: [
+        { id: "standard", name: "Gates", icon: "🚪", model: standardGatesModel },
+        { id: "home", name: "Home Gates", icon: "🏠", model: homeGatesModel },
+        { id: "charge", name: "Charge Stations", icon: "⚡", model: chargeStationsModel }
+    ]
+
+    function openAddGateDialog(mapX, mapY) {
+        addGateDialog.mapX = mapX
+        addGateDialog.mapY = mapY
+        addGateDialog.gateName = "New Gate"
+        addGateDialog.gateDesc = ""
+        addGateDialog.gateImage = ""
+        addGateDialog.open()
+    }
+    
+    function getNextIncrementalGateId(categoryId) {
+        let baseId = 10000;
+        let targetModel = null;
+        if (categoryId === "standard") {
+            baseId = 10000;
+            targetModel = standardGatesModel;
+        } else if (categoryId === "home") {
+            baseId = 20000;
+            targetModel = homeGatesModel;
+        } else if (categoryId === "charge") {
+            baseId = 30000;
+            targetModel = chargeStationsModel;
+        } else {
+            // Fallback for any other categories
+            baseId = 40000;
+            targetModel = standardGatesModel;
+        }
+        
+        let maxId = baseId;
+        if (targetModel) {
+            for (let i = 0; i < targetModel.count; i++) {
+                let idNum = parseInt(targetModel.get(i).gateId);
+                if (!isNaN(idNum) && idNum > maxId) {
+                    maxId = idNum;
+                }
+            }
+        }
+        return (maxId + 1).toString();
+    }
+
 
     // Layer State
     property string currentLayerTool: "pencil" // pencil, line, poly, eraser
@@ -79,8 +134,27 @@ Rectangle {
             
             if (projectManager.isLoaded) {
                 robotHandler.start_ros(projectManager.robotTopic, projectManager.scanTopic);
+                root.loadProjectGates();
             }
         }
+    }
+
+    function loadProjectGates() {
+        standardGatesModel.clear();
+        homeGatesModel.clear();
+        chargeStationsModel.clear();
+
+        let gatesData = projectManager.loadGates();
+        if (!gatesData) return;
+        
+        let standard = gatesData.standard_gates || [];
+        for (let i = 0; i < standard.length; i++) standardGatesModel.append(standard[i]);
+        
+        let home = gatesData.home_gates || [];
+        for (let i = 0; i < home.length; i++) homeGatesModel.append(home[i]);
+        
+        let charge = gatesData.charge_stations || [];
+        for (let i = 0; i < charge.length; i++) chargeStationsModel.append(charge[i]);
     }
 
     function requestSaveMapEdits() {
@@ -114,6 +188,29 @@ Rectangle {
             });
         }
         mapController.saveProjectFull(layerMetaList);
+
+        // Also save gates to YAML
+        function modelToList(model) {
+            let list = [];
+            for (let i = 0; i < model.count; i++) {
+                let item = model.get(i);
+                list.push({
+                    "gateId": item.gateId,
+                    "name": item.name,
+                    "description": item.description,
+                    "imageFile": item.imageFile,
+                    "xPos": item.xPos,
+                    "yPos": item.yPos
+                });
+            }
+            return list;
+        }
+        
+        projectManager.saveGates(
+            modelToList(standardGatesModel),
+            modelToList(homeGatesModel),
+            modelToList(chargeStationsModel)
+        );
     }
 
     SplitView {
@@ -136,12 +233,134 @@ Rectangle {
 
     Timer {
         id: autoSaveTimer
-        interval: 20000
+        interval: 60000
         running: sidePanel.autoSaveEnabled
         repeat: true
         onTriggered: {
             console.log("Auto-saving project...")
             root.saveProject()
+        }
+    }
+
+    FileDialog {
+        id: imageFileDialog
+        title: "Select Gate Image"
+        nameFilters: ["Image files (*.png *.jpg *.jpeg)", "All files (*)"]
+        onAccepted: {
+            if (addGateDialog.visible) {
+                addGateDialog.gateImage = selectedFile.toString().replace("file://", "");
+            }
+        }
+    }
+
+    Dialog {
+        id: addGateDialog
+        anchors.centerIn: parent
+        width: 350
+        height: 380
+        modal: true
+        title: "Add New Gate"
+        
+        property real mapX: 0.0
+        property real mapY: 0.0
+        property string gateName: ""
+        property string gateDesc: ""
+        property string gateImage: ""
+
+        background: Rectangle { color: "#1f2937"; radius: 8; border.color: "#374151" }
+        
+        header: Rectangle {
+            color: "#111827"; height: 40; radius: 8
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 8; color: "#111827" } // hide bottom radius
+            Text { anchors.centerIn: parent; text: addGateDialog.title; color: "white"; font.pixelSize: 14; font.bold: true }
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 12
+            
+            Text { text: "Location: " + addGateDialog.mapX.toFixed(2) + ", " + addGateDialog.mapY.toFixed(2) + " (meters)"; color: "#9ca3af"; font.pixelSize: 12 }
+            
+            ColumnLayout {
+                spacing: 4
+                Layout.fillWidth: true
+                Text { text: "Name"; color: "#d1d5db"; font.pixelSize: 12 }
+                Rectangle {
+                    Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#374151"
+                    TextInput { anchors.fill: parent; anchors.margins: 8; color: "white"; font.pixelSize: 13; text: addGateDialog.gateName; onTextChanged: addGateDialog.gateName = text }
+                }
+            }
+            
+            ColumnLayout {
+                spacing: 4
+                Layout.fillWidth: true
+                Text { text: "Description"; color: "#d1d5db"; font.pixelSize: 12 }
+                Rectangle {
+                    Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#374151"
+                    TextInput { anchors.fill: parent; anchors.margins: 8; color: "white"; font.pixelSize: 13; text: addGateDialog.gateDesc; onTextChanged: addGateDialog.gateDesc = text }
+                }
+            }
+            
+            ColumnLayout {
+                spacing: 4
+                Layout.fillWidth: true
+                Text { text: "Image Path/URL"; color: "#d1d5db"; font.pixelSize: 12 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Rectangle {
+                        Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#374151"
+                        TextInput { 
+                            anchors.fill: parent; anchors.margins: 8; color: "white"; font.pixelSize: 13; 
+                            text: addGateDialog.gateImage; 
+                            readOnly: true; clip: true; 
+                        }
+                    }
+                    Rectangle {
+                        width: 32; height: 32; color: "#374151"; radius: 4
+                        Text { anchors.centerIn: parent; text: "📁"; color: "white" }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: imageFileDialog.open()
+                        }
+                    }
+                }
+            }
+            
+            RowLayout {
+                Layout.fillWidth: true; Layout.alignment: Qt.AlignRight; spacing: 8; Layout.topMargin: 12
+                Rectangle {
+                    width: 80; height: 32; color: "transparent"; border.color: "#6b7280"; radius: 4
+                    Text { anchors.centerIn: parent; text: "Cancel"; color: "white"; font.pixelSize: 13 }
+                    MouseArea { anchors.fill: parent; onClicked: { root.pendingGateModel = null; addGateDialog.close() } }
+                }
+                Rectangle {
+                    width: 80; height: 32; color: "#2563eb"; radius: 4
+                    Text { anchors.centerIn: parent; text: "Confirm"; color: "white"; font.pixelSize: 13; font.bold: true }
+                    MouseArea { 
+                        anchors.fill: parent
+                        onClicked: {
+                            if (root.pendingGateModel) {
+                                let newGid = getNextIncrementalGateId(root.pendingGateCategoryId);
+                                let finalImagePath = addGateDialog.gateImage;
+                                if (finalImagePath) {
+                                    finalImagePath = projectManager.copyGateImage(finalImagePath, root.pendingGateCategoryId, addGateDialog.gateName, newGid, "");
+                                }
+                                root.pendingGateModel.append({
+                                    gateId: newGid,
+                                    name: addGateDialog.gateName,
+                                    xPos: addGateDialog.mapX,
+                                    yPos: addGateDialog.mapY,
+                                    description: addGateDialog.gateDesc,
+                                    imageFile: finalImagePath
+                                });
+                                root.activeGateId = newGid;
+                            }
+                            root.pendingGateModel = null;
+                            root.pendingGateCategoryId = "";
+                            addGateDialog.close();
+                        }
+                    }
+                }
+            }
         }
     }
 }

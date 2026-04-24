@@ -506,6 +506,50 @@ Rectangle {
                     z: 999
                 }
 
+                // Render Gates
+                Repeater {
+                    model: root.gateCategories
+                    Item {
+                        anchors.fill: parent
+                        property string catIcon: modelData.icon
+                        
+                        Repeater {
+                            model: modelData.model
+                            Item {
+                                property real px: (mapController ? mapController.mapWidth : 0) > 0 && (mapController ? mapController.resolution : 0) > 0 ? (model.xPos - (mapController ? mapController.origin : [0,0,0])[0]) / (mapController ? mapController.resolution : 0) : 0
+                                property real py: (mapController ? mapController.mapHeight : 0) > 0 && (mapController ? mapController.resolution : 0) > 0 ? (mapController ? mapController.mapHeight : 0) - ((model.yPos - (mapController ? mapController.origin : [0,0,0])[1]) / (mapController ? mapController.resolution : 0)) : 0
+                                
+                                x: px - (width / 2)
+                                y: py - (height / 2)
+                                width: 24
+                                height: 24
+                                scale: 1.0 / currentScale
+                                rotation: -mapRotation
+                                z: 200
+                                
+                                Rectangle {
+                                    anchors.fill: parent
+                                    color: root.activeGateId === model.gateId ? "#ef4444" : "#2563eb"
+                                    radius: 12
+                                    border.color: "white"
+                                    border.width: 2
+                                    
+                                    // Make the icon slightly bigger if selected
+                                    scale: root.activeGateId === model.gateId ? 1.2 : 1.0
+                                    Behavior on scale { NumberAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: catIcon
+                                        color: "white"
+                                        font.pixelSize: 12
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
         
         } // mapSpace
         } // mapContainer
@@ -616,6 +660,15 @@ Rectangle {
                 } else if (mouse.button === Qt.LeftButton && (mapController ? mapController.mapWidth : 0) > 0) {
                     let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
                     let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
+                    
+                    if (root.pendingGateModel !== null) {
+                        if ((mapController ? mapController.resolution : 0) > 0) {
+                            let mapX = (mapController ? mapController.origin : [0,0,0])[0] + pt.x * (mapController ? mapController.resolution : 0);
+                            let mapY = (mapController ? mapController.origin : [0,0,0])[1] + ((mapController ? mapController.mapHeight : 0) - pt.y) * (mapController ? mapController.resolution : 0);
+                            root.openAddGateDialog(mapX, mapY);
+                        }
+                        return;
+                    }
                     
                     if (root.activeMode === "layers" && root.activeLayerId !== "") {
                         if (root.currentLayerTool === "pencil" || root.currentLayerTool === "eraser") {

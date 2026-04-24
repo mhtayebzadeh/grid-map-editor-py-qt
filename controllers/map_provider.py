@@ -245,8 +245,8 @@ class MapController(QObject):
                 with open(mepro_path, 'r') as f:
                     mepro_data = json.load(f)
                 
-                mepro_data["edited_overlay"] = str(edit_layer_path)
-                mepro_data["merged_map"] = str(merged_path)
+                mepro_data["edited_overlay"] = edit_layer_path.name
+                mepro_data["merged_map"] = merged_path.name
                 
                 with open(mepro_path, 'w') as f:
                     json.dump(mepro_data, f, indent=4)
@@ -314,7 +314,7 @@ class MapController(QObject):
                     safe_name = "".join([c for c in name if c.isalnum() or c in (' ', '.', '_')]).strip().replace(' ', '_')
                     out_path = project_dir / f"{safe_name}.pgm"
                     l_img.save(str(out_path))
-                    layer_meta["file"] = str(out_path)
+                    layer_meta["file"] = out_path.name
                     print(f"Saved layer '{name}' to {out_path}")
                 except Exception as e:
                     print(f"Failed to save layer {layerId}: {e}")

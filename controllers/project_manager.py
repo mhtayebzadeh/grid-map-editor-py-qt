@@ -104,15 +104,16 @@ class ProjectManager(QObject):
             
             data = {
                 "project_name": name,
-                "original_map": str(new_map_path),
-                "original_yaml": str(new_yaml_path) if new_yaml_path else "",
+                "original_map": new_map_path.name,
+                "original_yaml": new_yaml_path.name if new_yaml_path else "",
                 "resolution": res,
                 "edited_overlay": "",
                 "merged_map": "",
                 "robot_topic": robot_topic,
                 "map_topic": map_topic,
                 "scan_topic": scan_topic,
-                "mapping_param": mapping_param
+                "mapping_param": mapping_param,
+                "gates_yaml": "gates_list.yaml"
             }
             
             with open(mepro_path, 'w') as f:
@@ -157,6 +158,7 @@ class ProjectManager(QObject):
             self._map_topic = data.get("map_topic", "/map")
             self._scan_topic = data.get("scan_topic", "/scan")
             self._mapping_param = data.get("mapping_param", "")
+            self._gates_yaml = data.get("gates_yaml", "gates_list.yaml")
             
             self._is_loaded = True
             
@@ -168,19 +170,36 @@ class ProjectManager(QObject):
 
     @Slot(result='QVariantList')
     def getLayers(self):
-        return self._layers
+        resolved = []
+        for layer in self._layers:
+            l = dict(layer)
+            if l.get("file"):
+                p = Path(l["file"])
+                if not p.is_absolute():
+                    l["file"] = str(Path(self._project_path) / p)
+            resolved.append(l)
+        return resolved
         
     @Slot(result=str)
     def getEditedOverlay(self):
-        return self._edited_overlay
+        if not self._edited_overlay: return ""
+        p = Path(self._edited_overlay)
+        if p.is_absolute(): return str(p)
+        return str(Path(self._project_path) / p)
 
     @Slot(result=str)
     def getOriginalMap(self):
-        return self._map_file
+        if not self._map_file: return ""
+        p = Path(self._map_file)
+        if p.is_absolute(): return str(p)
+        return str(Path(self._project_path) / p)
 
     @Slot(result=str)
     def getOriginalYaml(self):
-        return self._yaml_file
+        if not self._yaml_file: return ""
+        p = Path(self._yaml_file)
+        if p.is_absolute(): return str(p)
+        return str(Path(self._project_path) / p)
 
     @Slot(result=float)
     def getResolution(self):
@@ -211,4 +230,151 @@ class ProjectManager(QObject):
             print(f"Updated mepro with layers and timestamp at {mepro_path}")
         except Exception as e:
             print(f"Failed to update mepro layers: {e}")
+
+    @Slot(str, str, str, str, str, result=str)
+    def copyGateImage(self, source_uri, category_id, gate_name, gate_id, old_rel_path=""):
+        try:
+            if not self._project_path:
+                return source_uri
+            
+            raw_source = self._uri_to_path(source_uri)
+            source_path = Path(raw_source)
+            if not source_path.is_absolute():
+                source_path = Path(self._project_path) / source_path
+            
+            if old_rel_path:
+                old_path = Path(self._project_path) / old_rel_path
+                if old_path.exists() and old_path.resolve() != source_path.resolve():
+                    try:
+                        old_path.unlink()
+                    except Exception as e:
+                        print(f"Warning: Failed to delete old image {old_path}: {e}")
+            
+            if not source_path.exists():
+                return source_uri
+                
+            import shutil
+            import re
+            
+            safe_gate_name = re.sub(r'[^A-Za-z0-9_]', '', gate_name.replace(' ', '_'))
+            ext = source_path.suffix
+            
+            dest_dir = Path(self._project_path) / "gate_images" / category_id
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            
+            new_filename = f"{safe_gate_name}_{gate_id}{ext}"
+            dest_path = dest_dir / new_filename
+            
+            if source_path.resolve() != dest_path.resolve():
+                shutil.copy(source_path, dest_path)
+            
+            # Return relative path using POSIX format
+            return dest_path.relative_to(self._project_path).as_posix()
+        except Exception as e:
+            print(f"Failed to copy gate image: {e}")
+            return source_uri
+
+    @Slot(str)
+    def deleteGateImage(self, rel_path):
+        try:
+            if not self._project_path or not rel_path:
+                return
+            path_to_delete = Path(self._project_path) / rel_path
+            if path_to_delete.exists():
+                path_to_delete.unlink()
+        except Exception as e:
+            print(f"Failed to delete gate image {rel_path}: {e}")
+
+    @Slot('QVariantList', 'QVariantList', 'QVariantList', result=bool)
+    def saveGates(self, standard_gates, home_gates, charge_stations):
+        import yaml
+        try:
+            if not self._project_path:
+                return False
+                
+            gates_yaml_path = Path(self._project_path) / getattr(self, '_gates_yaml', 'gates_list.yaml')
+            
+            def map_gate(g):
+                img = g.get("imageFile", "")
+                prefix = "gate_images/"
+                if img.startswith(prefix):
+                    img = img[len(prefix):]
+                
+                return {
+                    "id": int(g.get("gateId", 0)),
+                    "name": g.get("name", ""),
+                    "description": g.get("description", ""),
+                    "image_name": img,
+                    "position": {
+                        "x": float(g.get("xPos", 0.0)),
+                        "y": float(g.get("yPos", 0.0)),
+                        "theta": 0.0 # Placeholder since UI doesn't have theta yet
+                    }
+                }
+            
+            yaml_data = {
+                "config": {
+                    "images_directory": "gate_images",
+                    "map_frame": "map",
+                    "map_name": self._project_name,
+                    "description": "",
+                    "default_approach_distance": 1.0
+                },
+                "home_gates": [map_gate(g) for g in home_gates] if home_gates else [],
+                "charge_stations": [map_gate(g) for g in charge_stations] if charge_stations else [],
+                "gates": [map_gate(g) for g in standard_gates] if standard_gates else []
+            }
+            
+            with open(gates_yaml_path, 'w', encoding='utf-8') as f:
+                yaml.dump(yaml_data, f, allow_unicode=True, sort_keys=False)
+            
+            return True
+        except Exception as e:
+            print(f"Failed to save gates_list.yaml: {e}")
+            return False
+
+    @Slot(result='QVariantMap')
+    def loadGates(self):
+        import yaml
+        try:
+            if not self._project_path:
+                return {}
+            
+            gates_yaml_path = Path(self._project_path) / getattr(self, '_gates_yaml', 'gates_list.yaml')
+            if not gates_yaml_path.exists():
+                return {}
+                
+            with open(gates_yaml_path, 'r', encoding='utf-8') as f:
+                yaml_data = yaml.safe_load(f)
+                
+            if not yaml_data:
+                return {}
+                
+            images_dir = yaml_data.get("config", {}).get("images_directory", "gate_images")
+            if not images_dir.endswith("/"):
+                images_dir += "/"
+
+            def unmap_gate(g):
+                img = g.get("image_name", "")
+                if img and not img.startswith("/") and not img.startswith("http") and not img.startswith(images_dir):
+                    img = images_dir + img
+                    
+                return {
+                    "gateId": str(g.get("id", "")),
+                    "name": g.get("name", ""),
+                    "description": g.get("description", ""),
+                    "imageFile": img,
+                    "xPos": g.get("position", {}).get("x", 0.0),
+                    "yPos": g.get("position", {}).get("y", 0.0),
+                    "expanded": False
+                }
+                
+            return {
+                "home_gates": [unmap_gate(g) for g in yaml_data.get("home_gates", [])],
+                "charge_stations": [unmap_gate(g) for g in yaml_data.get("charge_stations", [])],
+                "standard_gates": [unmap_gate(g) for g in yaml_data.get("gates", [])]
+            }
+        except Exception as e:
+            print(f"Failed to load gates_list.yaml: {e}")
+            return {}
 
