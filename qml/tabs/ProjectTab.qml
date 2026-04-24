@@ -12,10 +12,17 @@ Item {
     property string mapTopic: ""
     property string mappingParam: ""
     property bool autoSave: autoSaveCb.checked
+    property alias showRobot: showRobotCb.checked
+    property alias showLaserScan: showLaserScanCb.checked
 
-    ColumnLayout {
+    ScrollView {
         anchors.fill: parent
-        anchors.margins: 16
+        contentWidth: availableWidth
+        clip: true
+        
+        ColumnLayout {
+            width: parent.width
+            anchors.margins: 16
         spacing: 12
 
         Text { text: "PROJECT INFO"; color: "#9ca3af"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.2 }
@@ -118,6 +125,26 @@ Item {
                 contentItem: Text { text: parent.text; color: "#d1d5db"; font.pixelSize: 13; leftPadding: autoSaveCb.indicator.width + parent.spacing; verticalAlignment: Text.AlignVCenter }
             }
         }
+        
+        RowLayout {
+            spacing: 8
+            CheckBox {
+                id: showRobotCb
+                text: "Show Robot Position"
+                checked: true
+                contentItem: Text { text: parent.text; color: "#d1d5db"; font.pixelSize: 13; leftPadding: showRobotCb.indicator.width + parent.spacing; verticalAlignment: Text.AlignVCenter }
+            }
+        }
+
+        RowLayout {
+            spacing: 8
+            CheckBox {
+                id: showLaserScanCb
+                text: "Show Laser Scan"
+                checked: true
+                contentItem: Text { text: parent.text; color: "#d1d5db"; font.pixelSize: 13; leftPadding: showLaserScanCb.indicator.width + parent.spacing; verticalAlignment: Text.AlignVCenter }
+            }
+        }
 
 
         Item { Layout.fillHeight: true }
@@ -129,6 +156,7 @@ Item {
                 anchors.fill: parent 
                 onClicked: root.saveRequested()
             }
+        }
         }
     }
 }

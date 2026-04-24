@@ -455,61 +455,9 @@ Rectangle {
                     property real py: (mapController ? mapController.mapHeight : 0) > 0 ? (mapController ? mapController.mapHeight : 0) - (((robotHandler ? robotHandler.y : 0) - (mapController ? mapController.origin : [0,0,0])[1]) / (mapController ? mapController.resolution : 0)) : 0
 
                     rotation: -(robotHandler ? robotHandler.theta : 0) * (180 / Math.PI)
-                    visible: (mapController ? mapController.mapWidth : 0) > 0
+                    visible: ((mapController ? mapController.mapWidth : 0) > 0) && root.showRobot
 
-                    // Laser Scan Visualization
-                    Canvas {
-                        id: laserCanvas
-                        anchors.centerIn: parent
-                        // Fixed large size for the scan field
-                        width: 2000; height: 2000
-                        z: -1
-                        
-                        Connections {
-                            target: robotHandler
-                            function onScanChanged() { laserCanvas.requestPaint() }
-                        }
-                        
-                        onPaint: {
-                            var ctx = getContext("2d");
-                            ctx.clearRect(0, 0, width, height);
-                            let scan = robotHandler.scanData;
-                            if (!scan || scan.length === 0) return;
-                            let res = mapController ? mapController.resolution : 0.05;
-                            let cx = width / 2;
-                            let cy = height / 2;
-                            
-                            ctx.beginPath();
-                            ctx.strokeStyle = "rgba(0, 255, 128, 0.6)";
-                            ctx.lineWidth = 3 * currentScale; // Scale line width back up to be visible
-                            
-                            let step = 360 / scan.length;
-                            let first = true;
-                            for (let i = 0; i < scan.length; i++) {
-                                let dist = scan[i];
-                                if (dist <= 0.1 || dist > 30.0) continue; 
-                                let angle = (i * step - 90) * (Math.PI / 180);
-                                let lx = cx + (dist / res) * Math.cos(angle);
-                                let ly = cy + (dist / res) * Math.sin(angle);
-                                if (first) { ctx.moveTo(lx, ly); first = false; }
-                                else ctx.lineTo(lx, ly);
-                            }
-                            ctx.stroke();
-
-                            // Bolder points
-                            ctx.fillStyle = "#00ff80";
-                            for (let i = 0; i < scan.length; i += 2) { 
-                                let dist = scan[i];
-                                if (dist <= 0.1 || dist > 30.0) continue;
-                                let angle = (i * step - 90) * (Math.PI / 180);
-                                let lx = cx + (dist / res) * Math.cos(angle);
-                                let ly = cy + (dist / res) * Math.sin(angle);
-                                ctx.beginPath();
-                                ctx.arc(lx, ly, 3, 0, Math.PI * 2);
-                                ctx.fill();
-                            }
-                        }
-                    }
+                    // Laser Scan Canvas has been moved to viewport overlay
 
                     // Robot Marker (Arrow) - Now using a high-res Shape for crisp edges
                     Shape {
@@ -561,6 +509,92 @@ Rectangle {
         
         } // mapSpace
         } // mapContainer
+
+        // Laser Canvas OVERLAY in viewport coordinates (crisp resolution, native zooming)
+        Canvas {
+            id: laserCanvas
+            anchors.fill: parent
+            z: 90
+            visible: ((mapController ? mapController.mapWidth : 0) > 0) && root.showLaserScan
+
+            Connections {
+                target: robotHandler
+                function onScanChanged() { laserCanvas.requestPaint() }
+                function onPoseChanged() { laserCanvas.requestPaint() }
+            }
+            
+            Connections {
+                target: mapCanvasRoot
+                function onCurrentScaleChanged() { laserCanvas.requestPaint() }
+                function onMapRotationChanged() { laserCanvas.requestPaint() }
+            }
+            
+            Connections {
+                target: viewport
+                function onPanXChanged() { laserCanvas.requestPaint() }
+                function onPanYChanged() { laserCanvas.requestPaint() }
+            }
+
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.clearRect(0, 0, width, height);
+                let scan = robotHandler ? robotHandler.scanData : null;
+                if (!scan || scan.length === 0) return;
+                
+                let res = mapController ? mapController.resolution : 0.05;
+                if (res <= 0) return;
+                
+                // Get robot pos in viewport
+                let robotPos = robotMarker.mapToItem(viewport, robotMarker.width/2, robotMarker.height/2);
+                let cx = robotPos.x;
+                let cy = robotPos.y;
+                
+                ctx.beginPath();
+                ctx.strokeStyle = "rgba(0, 255, 128, 0.6)";
+                ctx.lineWidth = 2;
+                
+                let step = 360 / scan.length;
+                let first = true;
+                
+                // Calculate the global rotation angle for the rays
+                let totalRot = (mapRotation * Math.PI / 180) - (robotHandler ? robotHandler.theta : 0);
+                
+                for (let i = 0; i < scan.length; i++) {
+                    let dist = scan[i];
+                    if (dist <= 0.1 || dist > 30.0) continue; 
+                    
+                    let baseAngle = (i * step - 90) * (Math.PI / 180);
+                    let globalAngle = baseAngle + totalRot;
+                    
+                    let distPx = (dist / res) * currentScale;
+                    
+                    let lx = cx + distPx * Math.cos(globalAngle);
+                    let ly = cy + distPx * Math.sin(globalAngle);
+                    
+                    if (first) { ctx.moveTo(lx, ly); first = false; }
+                    else ctx.lineTo(lx, ly);
+                }
+                ctx.stroke();
+
+                ctx.fillStyle = "#00ff80";
+                for (let i = 0; i < scan.length; i += 2) { 
+                    let dist = scan[i];
+                    if (dist <= 0.1 || dist > 30.0) continue;
+                    
+                    let baseAngle = (i * step - 90) * (Math.PI / 180);
+                    let globalAngle = baseAngle + totalRot;
+                    
+                    let distPx = (dist / res) * currentScale;
+                    
+                    let lx = cx + distPx * Math.cos(globalAngle);
+                    let ly = cy + distPx * Math.sin(globalAngle);
+                    
+                    ctx.beginPath();
+                    ctx.arc(lx, ly, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
 
         MouseArea {
             id: panZoomArea

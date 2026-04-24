@@ -5,10 +5,15 @@ import QtQuick.Layouts
 Item {
     id: mapEditTab
 
-    ColumnLayout {
+    ScrollView {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 16
+        contentWidth: availableWidth
+        clip: true
+
+        ColumnLayout {
+            width: parent.width
+            anchors.margins: 16
+            spacing: 16
 
         Text { text: "TOOLS"; color: "#9ca3af"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.2 }
 
@@ -45,7 +50,7 @@ Item {
 
         Item { Layout.fillHeight: true }
 
-        Item { Layout.fillHeight: true }
+        }
     }
 }
 

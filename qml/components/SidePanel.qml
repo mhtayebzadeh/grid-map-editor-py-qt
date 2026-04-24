@@ -82,6 +82,12 @@ Rectangle {
                 mapTopic: root.slamMapTopic
                 mappingParam: root.slamMappingEnabledParam
                 
+                showRobot: root.showRobot
+                onShowRobotChanged: root.showRobot = showRobot
+                
+                showLaserScan: root.showLaserScan
+                onShowLaserScanChanged: root.showLaserScan = showLaserScan
+                
                 onSaveRequested: {
                     if (typeof root.saveProject === "function") {
                         root.saveProject()

@@ -8,10 +8,15 @@ Item {
     property var toolNames: ["pencil", "line", "poly", "eraser"]
     property var colors: ["#ef4444", "#3b82f6", "#22c55e", "#eab308", "#a855f7", "#ec4899", "#f97316"]
 
-    ColumnLayout {
+    ScrollView {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 16
+        contentWidth: availableWidth
+        clip: true
+
+        ColumnLayout {
+            width: parent.width
+            anchors.margins: 16
+            spacing: 16
 
         Text { text: "TOOLS"; color: "#9ca3af"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.2 }
 
@@ -85,14 +90,12 @@ Item {
             }
         }
 
-        ScrollView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            
             ListView {
                 id: layerList
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.max(100, contentHeight)
+                interactive: false // Let the outer ScrollView handle scrolling
+
                 model: layersModel
                 spacing: 4
                 delegate: Rectangle {

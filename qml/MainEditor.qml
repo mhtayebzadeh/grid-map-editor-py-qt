@@ -26,6 +26,9 @@ Rectangle {
 
     // Global UI State
     property string activeMode: "project" // "project", "map-edit", "layers", "gates"
+    property bool showRobot: true
+    property bool showLaserScan: true
+
     
     // Map Edit State
     property string currentMapEditTool: "obstacle" // "obstacle", "free", "revert"

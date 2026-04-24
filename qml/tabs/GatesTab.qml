@@ -5,10 +5,15 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    ColumnLayout {
+    ScrollView {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 16
+        contentWidth: availableWidth
+        clip: true
+
+        ColumnLayout {
+            width: parent.width
+            anchors.margins: 16
+            spacing: 16
 
         RowLayout {
             Text { text: "GATES"; color: "#9ca3af"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.2; Layout.fillWidth: true }
@@ -18,13 +23,10 @@ Item {
             }
         }
 
-        ScrollView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            
             ListView {
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.max(100, contentHeight)
+                interactive: false
                 model: ListModel {
                     ListElement { label: "Main Entrance (1)" }
                     ListElement { label: "Emergency Exit (2)" }

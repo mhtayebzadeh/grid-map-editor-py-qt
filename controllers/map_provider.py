@@ -174,7 +174,15 @@ class MapController(QObject):
             
             # 2. Merge with original PGM map
             original_pgm_path = self._project_manager.getOriginalMap()
-            if not original_pgm_path or not Path(original_pgm_path).exists():
+            if not original_pgm_path:
+                print("Error: original map path invalid:", original_pgm_path)
+                return
+                
+            # Save the current main map (which may have been updated from ROS) as the original map
+            if not self._provider.image.isNull():
+                self._provider.image.save(original_pgm_path)
+                
+            if not Path(original_pgm_path).exists():
                 print("Error: original map path invalid:", original_pgm_path)
                 return
                 
@@ -212,6 +220,24 @@ class MapController(QObject):
             with open(yaml_path, 'w') as f:
                 yaml.dump(yaml_data, f, default_flow_style=False)
             print(f"Saved YAML to: {yaml_path}")
+            
+            # Update the original map YAML with latest metadata from MapController
+            original_yaml_path = project_dir / "original_map.yaml"
+            if original_yaml_path.exists():
+                try:
+                    with open(original_yaml_path, 'r') as f:
+                        orig_yaml_data = yaml.safe_load(f)
+                        if orig_yaml_data is None:
+                            orig_yaml_data = {}
+                            
+                    orig_yaml_data["resolution"] = self._resolution
+                    orig_yaml_data["origin"] = self._origin if self._origin else [0.0, 0.0, 0.0]
+                    
+                    with open(original_yaml_path, 'w') as f:
+                        yaml.dump(orig_yaml_data, f, default_flow_style=False)
+                    print(f"Updated original YAML at: {original_yaml_path}")
+                except Exception as e:
+                    print(f"Warning: Failed to update original map yaml: {e}")
             
             # 4. Update the mepro project file
             mepro_path = project_dir / f"{self._project_manager.projectName}.mepro"
