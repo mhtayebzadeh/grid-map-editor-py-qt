@@ -834,7 +834,7 @@ Rectangle {
             cursorShape: {
                 if (root.pendingGateModel !== null) return Qt.CrossCursor;
                 if (isDrawing) return Qt.CrossCursor;
-                if (pressedButtons & Qt.MiddleButton || (pressedButtons & Qt.LeftButton && (modifiers & Qt.ControlModifier))) return Qt.SizeAllCursor;
+                if (panZoomArea.pressedButtons & Qt.MiddleButton || (panZoomArea.pressedButtons & Qt.LeftButton && (Qt.keyboardModifiers & Qt.ControlModifier))) return Qt.SizeAllCursor;
                 return Qt.ArrowCursor;
             }
         }

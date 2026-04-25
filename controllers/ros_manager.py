@@ -14,6 +14,10 @@ try:
 except ImportError:
     HAS_ROS2 = False
 
+# DEVELOPMENT FLAG: Set to True to generate fake jumpy data for scan and position
+# When True, real ROS data is ignored and fake data is generated at 2Hz.
+TEST_MODE = False
+
 class ROSManager(QObject):
     poseChanged = Signal()
     scanChanged = Signal()
@@ -36,22 +40,19 @@ class ROSManager(QObject):
         self.thread = None
         self.active = False
         
-        # RELEASE/TEST MODE TOGGLE
-        # Set to True to enable the jumpy fake data generator (0.5s interval)
-        self.test_mode = False 
-        
         # Sim Timer (Higher frequency for smooth movement)
         self.sim_timer = QTimer()
         self.sim_timer.timeout.connect(self._update_sim)
-        self.sim_timer.start(50) # 20Hz
 
         # Specific Fake Data Generator (0.5s interval)
         self.fake_data_timer = QTimer()
         self.fake_data_timer.timeout.connect(self.generateFakeData)
         
-        if self.test_mode:
+        if TEST_MODE:
+            self.sim_timer.start(200) # 5Hz
             self.fake_data_timer.start(500) 
-
+        else:
+            self._use_simulation = False
     @Property(float, notify=poseChanged)
     def x(self): return self._x
     
@@ -75,7 +76,7 @@ class ROSManager(QObject):
 
     def _update_sim(self):
         # Only run smooth sim if not in test mode and not connected to ROS
-        if self._use_simulation and not self.test_mode:
+        if self._use_simulation and not TEST_MODE:
             # Smooth movement pattern (Infinity loop)
             self._sim_angle += 0.015
             scale = 15.0

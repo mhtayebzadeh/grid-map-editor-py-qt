@@ -18,16 +18,22 @@ Item {
     property alias showLaserScan: showLaserScanCb.checked
 
     ScrollView {
+        id: scroll
         anchors.fill: parent
         clip: true
+        contentWidth: availableWidth
         ScrollBar.vertical.policy: ScrollBar.AsNeeded
         
-        ColumnLayout {
-            width: parent.availableWidth
-            anchors.margins: 16
-            spacing: 12
+        Pane {
+            width: scroll.availableWidth
+            background: null
+            padding: 16
 
-            Text { text: "PROJECT INFO"; color: "#9ca3af"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.2 }
+            ColumnLayout {
+                width: parent.width - 32
+                spacing: 12
+
+                Text { text: "PROJECT INFO"; color: "#9ca3af"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.2 }
 
             ColumnLayout {
                 spacing: 4
@@ -200,4 +206,5 @@ Item {
             Item { Layout.fillHeight: true; Layout.minimumHeight: 20 }
         }
     }
+}
 }
