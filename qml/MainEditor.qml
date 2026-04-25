@@ -363,7 +363,7 @@ Rectangle {
                     }
                     Rectangle {
                         width: 32; height: 32; color: "#374151"; radius: 4
-                        Text { anchors.centerIn: parent; text: "📁"; color: "white" }
+                        Text { anchors.centerIn: parent; text: "..."; color: "white" }
                         MouseArea {
                             anchors.fill: parent
                             onClicked: imageFileDialog.open()
