@@ -2,11 +2,18 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import QtCore
 import "./components"
 
 Rectangle {
     id: root
     color: "#1a1e24"
+
+    Settings {
+        id: folderSettings
+        category: "LastFolders"
+        property string lastGateImageFolder: ""
+    }
 
     signal doLayerDraw(string layerId, var points, real drawValue, string tool, real size) // Matches the main app background dark color
 
@@ -47,7 +54,7 @@ Rectangle {
     ListModel { id: chargeStationsModel }
 
     property var gateCategories: [
-        { id: "standard", name: "Gates", icon: "🚪", model: standardGatesModel },
+        { id: "standard", name: "Gates", icon: "⚲", model: standardGatesModel },
         { id: "home", name: "Home Gates", icon: "🏠", model: homeGatesModel },
         { id: "charge", name: "Charge Stations", icon: "⚡", model: chargeStationsModel }
     ]
@@ -111,6 +118,8 @@ Rectangle {
     ListModel {
         id: layersModel
         Component.onCompleted: {
+            mapController.isSlamMode = root.isSlamMode;
+            
             if (!root.isSlamMode && projectManager.isLoaded) {
                 let layers = projectManager.getLayers();
                 if (layers && layers.length > 0) {
@@ -135,6 +144,13 @@ Rectangle {
             root.editLayerPath = projectManager ? projectManager.getEditedOverlay() : "";
             
             if (projectManager && projectManager.isLoaded) {
+                // Global Config takes priority over project-saved topics
+                if (root.slamMapTopic !== "") projectManager.mapTopic = root.slamMapTopic;
+                if (root.slamScanTopic !== "") projectManager.scanTopic = root.slamScanTopic;
+                if (root.slamTfTopic !== "") projectManager.tfTopic = root.slamTfTopic;
+                if (root.slamRobotFrame !== "") projectManager.robotFrame = root.slamRobotFrame;
+                if (root.slamMappingEnabledParam !== "") projectManager.mappingEnabledParam = root.slamMappingEnabledParam;
+
                 robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame);
                 root.loadProjectGates();
             } else if (root.isSlamMode) {
@@ -223,15 +239,38 @@ Rectangle {
 
         SidePanel {
             id: sidePanel
-            SplitView.preferredWidth: 320
-            SplitView.minimumWidth: 250
+            SplitView.preferredWidth: 340
+            SplitView.minimumWidth: 300
             SplitView.maximumWidth: 500
+            onSaveRequested: root.saveProject()
+            onExitRequested: exitConfirmDialog.open()
         }
 
         MapCanvas {
             id: mapCanvas
             SplitView.fillWidth: true
             editLayerPath: root.editLayerPath
+        }
+    }
+
+    MessageDialog {
+        id: exitConfirmDialog
+        title: "Confirm Exit"
+        text: "Are you sure you want to exit the editor? Any unsaved changes will be lost."
+        buttons: MessageDialog.Yes | MessageDialog.No
+        onAccepted: {
+            robotHandler.stop_ros();
+            stackView.pop();
+        }
+    }
+
+    Connections {
+        target: projectManager
+        function onRosConfigChanged() {
+            if (projectManager.isLoaded) {
+                console.log("ROS topics updated: Map=" + projectManager.mapTopic + " Scan=" + projectManager.scanTopic)
+                robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame);
+            }
         }
     }
 
@@ -250,7 +289,9 @@ Rectangle {
         id: imageFileDialog
         title: "Select Gate Image"
         nameFilters: ["Image files (*.png *.jpg *.jpeg)", "All files (*)"]
+        currentFolder: folderSettings.lastGateImageFolder !== "" ? folderSettings.lastGateImageFolder : StandardPaths.writableLocation(StandardPaths.PicturesLocation)
         onAccepted: {
+            folderSettings.lastGateImageFolder = currentFolder
             if (addGateDialog.visible) {
                 addGateDialog.gateImage = selectedFile.toString().replace("file://", "");
             }

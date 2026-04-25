@@ -831,6 +831,12 @@ Rectangle {
                     currentScale = newScale
                 }
             }
+            cursorShape: {
+                if (root.pendingGateModel !== null) return Qt.CrossCursor;
+                if (isDrawing) return Qt.CrossCursor;
+                if (pressedButtons & Qt.MiddleButton || (pressedButtons & Qt.LeftButton && (modifiers & Qt.ControlModifier))) return Qt.SizeAllCursor;
+                return Qt.ArrowCursor;
+            }
         }
     } // viewport
 
@@ -871,6 +877,7 @@ Rectangle {
                 Text { anchors.centerIn: parent; text: "⟲"; color: "white" }
                 MouseArea { 
                     anchors.fill: parent; 
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: { 
                         mapRotation = (mapRotation - 90) % 360; 
                         if (isFollowingRobot) focusRobot(); else fitMap();
@@ -882,6 +889,7 @@ Rectangle {
                 Text { anchors.centerIn: parent; text: "⟳"; color: "white" } 
                 MouseArea { 
                     anchors.fill: parent; 
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: { 
                         mapRotation = (mapRotation + 90) % 360; 
                         if (isFollowingRobot) focusRobot(); else fitMap();
@@ -892,17 +900,17 @@ Rectangle {
         Rectangle { 
             width: 100; height: 36; color: "#cc1e2329"; radius: 4; Layout.alignment: Qt.AlignRight; 
             Text { anchors.centerIn: parent; text: "⛶ Fit Map"; color: "white" }
-            MouseArea { anchors.fill: parent; onClicked: mapCanvasRoot.fitMap() }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: mapCanvasRoot.fitMap() }
         }
         Rectangle { 
             width: 120; height: 36; color: "#cc1e2329"; radius: 4; Layout.alignment: Qt.AlignRight; 
-            Text { anchors.centerIn: parent; text: "⌖ Focus Robot"; color: "white" }
-            MouseArea { anchors.fill: parent; onClicked: mapCanvasRoot.focusRobot() }
+            Text { anchors.centerIn: parent; text: "🔍 Focus Robot"; color: "white" }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: mapCanvasRoot.focusRobot() }
         }
         Rectangle { 
             width: 120; height: 36; color: isFollowingRobot ? "#2e4a66" : "#cc1e2329"; radius: 4; Layout.alignment: Qt.AlignRight; 
-            Text { anchors.centerIn: parent; text: "📍 Follow Robot"; color: "white" } 
-            MouseArea { anchors.fill: parent; onClicked: { isFollowingRobot = !isFollowingRobot; if (isFollowingRobot) focusRobot(); } }
+            Text { anchors.centerIn: parent; text: "⚲ Follow Robot"; color: "white" } 
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { isFollowingRobot = !isFollowingRobot; if (isFollowingRobot) focusRobot(); } }
         }
     }
 

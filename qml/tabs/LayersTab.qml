@@ -34,6 +34,7 @@ Item {
                     }
                     MouseArea {
                         anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: root.currentLayerTool = rootTab.toolNames[index]
                     }
                 }
@@ -75,6 +76,7 @@ Item {
                 Text { anchors.centerIn: parent; text: "+"; color: "white"; font.pixelSize: 16; font.bold: true }
                 MouseArea {
                     anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         let newColor = rootTab.colors[layersModel.count % rootTab.colors.length];
                         layersModel.append({ 
@@ -114,6 +116,7 @@ Item {
                     
                     MouseArea {
                         anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: root.activeLayerId = model.layerId
                     }
 
@@ -129,6 +132,7 @@ Item {
                                 font.pixelSize: 14
                                 MouseArea {
                                     anchors.fill: parent; anchors.margins: -5
+                                    cursorShape: Qt.PointingHandCursor
                                     onClicked: layersModel.setProperty(index, "layerVisible", !model.layerVisible)
                                 }
                             }
@@ -140,6 +144,7 @@ Item {
                             TextInput { 
                                 text: model.name; color: "white"; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true 
                                 onEditingFinished: layersModel.setProperty(index, "name", text)
+                                HoverHandler { cursorShape: Qt.IBeamCursor }
                             }
                             
                             // Delete
@@ -147,6 +152,7 @@ Item {
                                 text: "🗑"; color: "#9ca3af"; font.pixelSize: 14
                                 MouseArea {
                                     anchors.fill: parent; anchors.margins: -5
+                                    cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         layersModel.remove(index);
                                         if (layersModel.count > 0 && root.activeLayerId === model.layerId) {

@@ -42,7 +42,11 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 width: 100; height: 32; color: "#ef4444"; radius: 4
                 Text { anchors.centerIn: parent; text: "Cancel"; color: "white"; font.pixelSize: 13; font.bold: true }
-                MouseArea { anchors.fill: parent; onClicked: root.pendingGateModel = null }
+                MouseArea { 
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.pendingGateModel = null 
+                }
             }
         }
     }
@@ -80,6 +84,7 @@ Item {
                             Text { anchors.centerIn: parent; text: "+"; color: "white"; font.pixelSize: 18; font.bold: true }
                             MouseArea {
                                 anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     root.pendingGateCategoryId = categoryDelegate.catId
                                     root.pendingGateModel = categoryDelegate.catModel
@@ -212,7 +217,7 @@ Item {
                                             }
                                             Rectangle {
                                                 width: 28; height: 28; color: "#374151"; radius: 4
-                                                Text { anchors.centerIn: parent; text: "📁"; color: "white" }
+                                                Text { anchors.centerIn: parent; text: "File..."; color: "white" }
                                                 MouseArea {
                                                     anchors.fill: parent
                                                     onClicked: {

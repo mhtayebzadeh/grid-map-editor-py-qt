@@ -9,6 +9,9 @@ Rectangle {
 
     property int currentTab: 0
     property bool autoSaveEnabled: projectTab ? projectTab.autoSave : false
+    
+    signal saveRequested()
+    signal exitRequested()
 
     ColumnLayout {
         anchors.fill: parent
@@ -50,6 +53,7 @@ Rectangle {
                         }
                         MouseArea {
                             anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 sidePanelRoot.currentTab = index;
                                 let modes = ["project", "map-edit", "layers", "gates"];
@@ -69,6 +73,7 @@ Rectangle {
             Layout.bottomMargin: 8
         }
 
+        // TABS AREA - Expands to fill space
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -89,16 +94,69 @@ Rectangle {
                 
                 showLaserScan: root.showLaserScan
                 onShowLaserScanChanged: root.showLaserScan = showLaserScan
-                
-                onSaveRequested: {
-                    if (typeof root.saveProject === "function") {
-                        root.saveProject()
-                    }
-                }
             }
             MapEditTab {}
             LayersTab {}
             GatesTab {}
+        }
+
+        // BOTTOM AREA - Fixed height
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: "#38404a"
+            Layout.topMargin: 4
+            Layout.bottomMargin: 4
+        }
+
+        RowLayout {
+            id: bottomButtons
+            Layout.fillWidth: true
+            Layout.preferredHeight: 40
+            Layout.fillHeight: false
+            spacing: 8
+
+            // EXIT BUTTON
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 80
+                Layout.fillHeight: true
+                color: "#dc2626"
+                radius: 6
+                Text {
+                    anchors.centerIn: parent
+                    text: "Exit"
+                    color: "white"
+                    font.pixelSize: 14
+                    font.bold: true
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: sidePanelRoot.exitRequested()
+                }
+            }
+
+            // SAVE BUTTON
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 240
+                Layout.fillHeight: true
+                color: "#16a34a"
+                radius: 6
+                Text {
+                    anchors.centerIn: parent
+                    text: "Save Project"
+                    color: "white"
+                    font.pixelSize: 15
+                    font.bold: true
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: sidePanelRoot.saveRequested()
+                }
+            }
         }
     }
 }

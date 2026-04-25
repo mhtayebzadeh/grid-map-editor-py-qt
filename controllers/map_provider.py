@@ -69,6 +69,15 @@ class MapController(QObject):
         self._height = 0
         self._image_path = ""
         self._last_map_update_time = 0
+        self._is_slam_mode = False
+        
+    @Property(bool)
+    def isSlamMode(self):
+        return self._is_slam_mode
+        
+    @isSlamMode.setter
+    def isSlamMode(self, val):
+        self._is_slam_mode = val
         
     @Property(float, notify=resolutionChanged)
     def resolution(self):
@@ -142,8 +151,11 @@ class MapController(QObject):
     @Slot(object)
     def handleRosMap(self, msg):
         """Processes a nav_msgs/OccupancyGrid message."""
+        if not self._is_slam_mode:
+            return
+
         now = time.time()
-        if now - self._last_map_update_time < 5.0:
+        if now - self._last_map_update_time < 3.0:
             return
             
         self._last_map_update_time = now
@@ -299,6 +311,13 @@ class MapController(QObject):
                 mepro_data["edited_overlay"] = edit_layer_path.name
                 mepro_data["merged_map"] = merged_path.name
                 mepro_data["resolution"] = self._resolution
+                
+                # Sync topics from project manager
+                mepro_data["map_topic"] = self._project_manager.mapTopic
+                mepro_data["scan_topic"] = self._project_manager.scanTopic
+                mepro_data["mapping_param"] = self._project_manager.mappingEnabledParam
+                mepro_data["tf_topic"] = self._project_manager.tfTopic
+                mepro_data["robot_frame"] = self._project_manager.robotFrame
                 
                 with open(mepro_path, 'w') as f:
                     json.dump(mepro_data, f, indent=4)

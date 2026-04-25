@@ -6,6 +6,7 @@ from PySide6.QtCore import QObject, Signal, Slot, Property
 class ProjectManager(QObject):
     projectLoaded = Signal()
     projectSaved = Signal()
+    rosConfigChanged = Signal()
     errorOccurred = Signal(str)
 
     def __init__(self, parent=None):
@@ -32,20 +33,40 @@ class ProjectManager(QObject):
     def projectPath(self):
         return self._project_path
 
-    @Property(str, notify=projectLoaded)
+    @Property(str, notify=rosConfigChanged)
     def mapTopic(self): return self._map_topic
+    @mapTopic.setter
+    def mapTopic(self, val): 
+        self._map_topic = val
+        self.rosConfigChanged.emit()
 
-    @Property(str, notify=projectLoaded)
+    @Property(str, notify=rosConfigChanged)
     def scanTopic(self): return self._scan_topic
+    @scanTopic.setter
+    def scanTopic(self, val): 
+        self._scan_topic = val
+        self.rosConfigChanged.emit()
 
-    @Property(str, notify=projectLoaded)
+    @Property(str, notify=rosConfigChanged)
     def mappingEnabledParam(self): return self._mapping_param
+    @mappingEnabledParam.setter
+    def mappingEnabledParam(self, val): 
+        self._mapping_param = val
+        self.rosConfigChanged.emit()
 
-    @Property(str, notify=projectLoaded)
+    @Property(str, notify=rosConfigChanged)
     def tfTopic(self): return self._tf_topic
+    @tfTopic.setter
+    def tfTopic(self, val): 
+        self._tf_topic = val
+        self.rosConfigChanged.emit()
 
-    @Property(str, notify=projectLoaded)
+    @Property(str, notify=rosConfigChanged)
     def robotFrame(self): return self._robot_frame
+    @robotFrame.setter
+    def robotFrame(self, val): 
+        self._robot_frame = val
+        self.rosConfigChanged.emit()
 
     @Property(bool, notify=projectLoaded)
     def isLoaded(self):
@@ -228,6 +249,14 @@ class ProjectManager(QObject):
                 data = json.load(f)
                 
             data["layers"] = layers_meta
+            
+            # Persist current ROS topics as well
+            data["map_topic"] = self._map_topic
+            data["scan_topic"] = self._scan_topic
+            data["mapping_param"] = self._mapping_param
+            data["tf_topic"] = self._tf_topic
+            data["robot_frame"] = self._robot_frame
+
             now_iso = datetime.datetime.now().isoformat()
             if "createdAt" not in data:
                 data["createdAt"] = now_iso
