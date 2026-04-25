@@ -14,7 +14,7 @@ ApplicationWindow {
         id: stackView
         anchors.fill: parent
         initialItem: StartScreen {
-            onStartEditor: (isSlamMode, projectName, projectPath, mapFile, yamlFile, resolution, robotTopic, mapTopic, scanTopic, mappingParam) => {
+            onStartEditor: (isSlamMode, projectName, projectPath, mapFile, yamlFile, resolution, mapTopic, scanTopic, mappingParam, tfTopic, robotFrame) => {
                 
                 // If in edit mode, tell python to load the map!
                 if (!isSlamMode && (mapFile !== "" || yamlFile !== "")) {
@@ -25,10 +25,11 @@ ApplicationWindow {
                     "isSlamMode": isSlamMode,
                     "projectName": projectName,
                     "projectPath": projectPath,
-                    "slamRobotTopic": robotTopic,
                     "slamMapTopic": mapTopic,
                     "slamScanTopic": scanTopic,
-                    "slamMappingEnabledParam": mappingParam
+                    "slamMappingEnabledParam": mappingParam,
+                    "slamTfTopic": tfTopic,
+                    "slamRobotFrame": robotFrame
                 })
             }
         }

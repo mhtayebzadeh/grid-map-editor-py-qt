@@ -15,15 +15,17 @@ Rectangle {
     property string projectPath: ""
 
     // SLAM Topics (Persisted via Settings)
-    property string slamRobotTopic: ""
     property string slamMapTopic: ""
     property string slamScanTopic: ""
     property string slamMappingEnabledParam: ""
+    property string slamTfTopic: ""
+    property string slamRobotFrame: ""
 
     // Global properties used by sub-tabs
-    property string robotTopic: projectManager.isLoaded ? projectManager.robotTopic : slamRobotTopic
-    property string mapTopic: projectManager.isLoaded ? projectManager.mapTopic : slamMapTopic
-    property string scanTopic: projectManager.isLoaded ? projectManager.scanTopic : slamScanTopic
+    property string mapTopic: (projectManager && projectManager.isLoaded) ? projectManager.mapTopic : slamMapTopic
+    property string scanTopic: (projectManager && projectManager.isLoaded) ? projectManager.scanTopic : slamScanTopic
+    property string tfTopic: (projectManager && projectManager.isLoaded) ? projectManager.tfTopic : slamTfTopic
+    property string robotFrame: (projectManager && projectManager.isLoaded) ? projectManager.robotFrame : slamRobotFrame
 
     // Global UI State
     property string activeMode: "project" // "project", "map-edit", "layers", "gates"
@@ -129,12 +131,14 @@ Rectangle {
             } else {
                 layersModel.append({ "layerId": "layer_" + Date.now(), "name": "Keepout", "colorStr": "#ef4444", "opacity": 0.70, "layerVisible": true, "filePath": "" });
             }
-            root.activeLayerId = layersModel.get(0).layerId;
-            root.editLayerPath = projectManager.getEditedOverlay();
+            root.activeLayerId = layersModel.count > 0 ? layersModel.get(0).layerId : "";
+            root.editLayerPath = projectManager ? projectManager.getEditedOverlay() : "";
             
-            if (projectManager.isLoaded) {
-                robotHandler.start_ros(projectManager.robotTopic, projectManager.scanTopic);
+            if (projectManager && projectManager.isLoaded) {
+                robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame);
                 root.loadProjectGates();
+            } else if (root.isSlamMode) {
+                robotHandler.start_ros(root.slamScanTopic, root.slamMapTopic, root.slamTfTopic, root.slamRobotFrame);
             }
         }
     }

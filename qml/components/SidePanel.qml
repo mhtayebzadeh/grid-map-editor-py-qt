@@ -78,8 +78,10 @@ Rectangle {
                 id: projectTab
                 projectName: root.projectName
                 projectPath: root.projectPath
-                robotTopic: root.slamRobotTopic
-                mapTopic: root.slamMapTopic
+                mapTopic: root.mapTopic
+                scanTopic: root.scanTopic
+                tfTopic: root.tfTopic
+                robotFrame: root.robotFrame
                 mappingParam: root.slamMappingEnabledParam
                 
                 showRobot: root.showRobot

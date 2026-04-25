@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
-import Qt.labs.settings
+import QtCore
 
 Rectangle {
     id: root
@@ -10,18 +10,19 @@ Rectangle {
 
     Settings {
         category: "SlamTopics"
-        property alias robotTopic: slamRobotTopicField.text
         property alias mapTopic: slamMapTopicField.text
         property alias scanTopic: slamScanTopicField.text
         property alias mappingEnabledParam: slamMappingEnabledParamField.text
+        property alias tfTopic: slamTfTopicField.text
+        property alias robotFrame: slamRobotFrameField.text
     }
 
-    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution, string robotTopic, string mapTopic, string scanTopic, string mappingParam)
+    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution, string mapTopic, string scanTopic, string mappingParam, string tfTopic, string robotFrame)
     property bool isEditMode: true
 
     Rectangle {
         width: 750
-        height: isEditMode ? 600 : 400
+        height: isEditMode ? 600 : 550
         anchors.centerIn: parent
         color: "#1e2329"
         radius: 8
@@ -253,87 +254,112 @@ Rectangle {
                 }
             }
 
-            ColumnLayout {
+            ScrollView {
                 visible: !root.isEditMode
                 Layout.fillWidth: true
-                spacing: 16
+                Layout.fillHeight: true
+                clip: true
+                ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
                 ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Text { text: "Project Name"; color: "#a0a5ab"; font.pixelSize: 12 }
-                    TextField {
-                        id: slamProjNameField
-                        Layout.fillWidth: true
-                        text: "My Map"
-                        color: "white"
-                        background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
-                    }
-                }
-                
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Text { text: "Robot Position Topic"; color: "#a0a5ab"; font.pixelSize: 12 }
-                    TextField {
-                        id: slamRobotTopicField
-                        Layout.fillWidth: true
-                        text: "/robot_pose"
-                        color: "white"
-                        background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
-                    }
-                }
+                    width: parent.width
+                    spacing: 16
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Text { text: "Map Topic"; color: "#a0a5ab"; font.pixelSize: 12 }
-                    TextField {
-                        id: slamMapTopicField
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "/map"
-                        color: "white"
-                        background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                        spacing: 4
+                        Text { text: "Project Name"; color: "#a0a5ab"; font.pixelSize: 12 }
+                        TextField {
+                            id: slamProjNameField
+                            Layout.fillWidth: true
+                            text: "My Map"
+                            color: "white"
+                            background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                        }
                     }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Text { text: "Laser Scan Topic"; color: "#a0a5ab"; font.pixelSize: 12 }
-                    TextField {
-                        id: slamScanTopicField
+                    
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "/scan"
-                        color: "white"
-                        background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                        spacing: 4
+                        Text { text: "Map Topic"; color: "#a0a5ab"; font.pixelSize: 12 }
+                        TextField {
+                            id: slamMapTopicField
+                            Layout.fillWidth: true
+                            text: "/map"
+                            color: "white"
+                            background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                        }
                     }
-                }
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Text { text: "Mapping Enabled Param"; color: "#a0a5ab"; font.pixelSize: 12 }
-                    TextField {
-                        id: slamMappingEnabledParamField
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "/slam_toolbox/mapping_enabled"
-                        color: "white"
-                        background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                        spacing: 4
+                        Text { text: "TF Topic"; color: "#a0a5ab"; font.pixelSize: 12 }
+                        TextField {
+                            id: slamTfTopicField
+                            Layout.fillWidth: true
+                            text: "/tf"
+                            color: "white"
+                            background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                        }
                     }
-                }
 
-                Item { Layout.fillHeight: true }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Text { text: "Robot Base Frame"; color: "#a0a5ab"; font.pixelSize: 12 }
+                        TextField {
+                            id: slamRobotFrameField
+                            Layout.fillWidth: true
+                            text: "base_link"
+                            color: "white"
+                            background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                        }
+                    }
 
-                Button {
-                    Layout.fillWidth: true
-                    height: 40
-                    text: "Start SLAM Mapping"
-                    font.bold: true
-                    palette.buttonText: "white"
-                    background: Rectangle { color: "#22c55e"; radius: 4 }
-                    onClicked: {
-                        root.startEditor(true, slamProjNameField.text, "", "", "", "", slamRobotTopicField.text, slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text)
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Text { text: "Laser Scan Topic"; color: "#a0a5ab"; font.pixelSize: 12 }
+                        TextField {
+                            id: slamScanTopicField
+                            Layout.fillWidth: true
+                            text: "/scan"
+                            color: "white"
+                            background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Text { text: "Mapping Enabled Param"; color: "#a0a5ab"; font.pixelSize: 12 }
+                        TextField {
+                            id: slamMappingEnabledParamField
+                            Layout.fillWidth: true
+                            text: "/slam_toolbox/mapping_enabled"
+                            color: "white"
+                            background: Rectangle { color: "#252b32"; radius: 4; border.color: "#38404a" }
+                        }
+                    }
+
+                    Item { Layout.fillHeight: true; Layout.minimumHeight: 10 }
+
+                    Button {
+                        Layout.fillWidth: true
+                        height: 40
+                        text: "Start SLAM Mapping"
+                        font.bold: true
+                        palette.buttonText: "white"
+                        background: Rectangle { color: "#22c55e"; radius: 4 }
+                        onClicked: {
+                            if (slamProjNameField.text === "") {
+                                errorDialog.text = "Project Name is required."
+                                errorDialog.open()
+                                return
+                            }
+                            slamFolderDialog.open()
+                        }
                     }
                 }
             }
@@ -344,6 +370,16 @@ Rectangle {
                 color: "#6b7280"
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignHCenter
+            }
+        }
+    }
+
+    FolderDialog {
+        id: slamFolderDialog
+        title: "Select Directory to Create SLAM Project"
+        onAccepted: {
+            if(projectManager.createProject(slamProjNameField.text, currentFolder.toString(), "", "", "0.05", slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
+                root.startEditor(true, projectManager.projectName, projectManager.projectPath, "", "", "0.05", projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam, projectManager.tfTopic, projectManager.robotFrame)
             }
         }
     }
@@ -367,8 +403,8 @@ Rectangle {
             let yamlFile = yamlFileDialog.currentFile ? yamlFileDialog.currentFile.toString() : ""
             let pgmFile = mapFileDialog.currentFile ? mapFileDialog.currentFile.toString() : ""
             
-            if(projectManager.createProject(projNameField.text, currentFolder.toString(), pgmFile, yamlFile, resolutionField.text, slamRobotTopicField.text, slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text)) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), projectManager.robotTopic, projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam)
+            if(projectManager.createProject(projNameField.text, currentFolder.toString(), pgmFile, yamlFile, resolutionField.text, slamRobotTopicField.text, slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), projectManager.robotTopic, projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam, projectManager.tfTopic, projectManager.robotFrame)
             }
         }
     }
@@ -379,7 +415,7 @@ Rectangle {
         nameFilters: ["Map Project (*.mepro)"]
         onAccepted: {
             if (projectManager.openProject(currentFile.toString())) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), projectManager.robotTopic, projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam)
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam, projectManager.tfTopic, projectManager.robotFrame)
             }
         }
     }

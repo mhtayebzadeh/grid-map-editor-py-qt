@@ -36,6 +36,9 @@ if __name__ == "__main__":
     context.setContextProperty("mapController", map_controller)
     context.setContextProperty("robotHandler", robot_handler)
     
+    # 3. Connect Signals
+    robot_handler.mapReceived.connect(map_controller.handleRosMap)
+    
     # Load the QML file
     qml_file = Path(__file__).resolve().parent / "qml" / "main.qml"
     engine.load(qml_file)

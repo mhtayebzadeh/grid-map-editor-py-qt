@@ -7,8 +7,9 @@ try:
     import rclpy
     from rclpy.node import Node
     from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
-    from nav_msgs.msg import Odometry
+    from nav_msgs.msg import Odometry, OccupancyGrid
     from sensor_msgs.msg import LaserScan
+    import tf2_ros
     HAS_ROS2 = True
 except ImportError:
     HAS_ROS2 = False
@@ -16,6 +17,7 @@ except ImportError:
 class ROSManager(QObject):
     poseChanged = Signal()
     scanChanged = Signal()
+    mapReceived = Signal(object) # Emit the OccupancyGrid message or processed data
     statusChanged = Signal()
 
     def __init__(self):
@@ -27,6 +29,8 @@ class ROSManager(QObject):
         self._is_connected = False
         self._use_simulation = True
         self._sim_angle = 0.0
+        self._scan_angle_min = -math.pi # Default -180
+        self._scan_angle_increment = (2 * math.pi) / 360 # Default 1 deg
         
         self.node = None
         self.thread = None
@@ -62,6 +66,12 @@ class ROSManager(QObject):
 
     @Property(bool, notify=statusChanged)
     def isConnected(self): return self._is_connected
+
+    @Property(float, notify=scanChanged)
+    def scanAngleMin(self): return self._scan_angle_min
+
+    @Property(float, notify=scanChanged)
+    def scanAngleIncrement(self): return self._scan_angle_increment
 
     def _update_sim(self):
         # Only run smooth sim if not in test mode and not connected to ROS
@@ -110,8 +120,8 @@ class ROSManager(QObject):
         self.poseChanged.emit()
         self.scanChanged.emit()
 
-    @Slot(str)
-    def start_ros(self, pose_topic="/pose", scan_topic="/scan"):
+    @Slot(str, str, str, str)
+    def start_ros(self, scan_topic="/scan", map_topic="/map", tf_topic="/tf", robot_frame="base_link"):
         if not HAS_ROS2:
             print("ROS2 not available, staying in simulation mode.")
             return
@@ -119,9 +129,9 @@ class ROSManager(QObject):
         if self.active:
             self.stop_ros()
 
-        print(f"Starting ROS2 connection on topic: {pose_topic}")
+        print(f"Starting ROS2 connection. Scan: {scan_topic}, Map: {map_topic}, Robot Frame: {robot_frame}")
         self.active = True
-        self.thread = threading.Thread(target=self._ros_thread, args=(pose_topic, scan_topic), daemon=True)
+        self.thread = threading.Thread(target=self._ros_thread, args=(scan_topic, map_topic, tf_topic, robot_frame), daemon=True)
         self.thread.start()
 
     @Slot()
@@ -131,23 +141,44 @@ class ROSManager(QObject):
             # Wait briefly for thread to exit
             self.thread.join(timeout=0.2)
 
-    def _ros_thread(self, pose_topic, scan_topic):
+    def _ros_thread(self, scan_topic, map_topic, tf_topic, robot_frame):
         node = None
         try:
             if not rclpy.ok():
                 rclpy.init()
-            node = Node('grid_map_editor_node')
+            node = Node('grid_map_editor_node', parameter_overrides=[
+                rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)
+            ])
             
-            # Pose subscription
-            node.create_subscription(PoseWithCovarianceStamped, pose_topic, self._pose_callback, 10)
+            # TF Listener
+            tf_buffer = tf2_ros.Buffer()
+            tf_listener = tf2_ros.TransformListener(tf_buffer, node)
             
-            # Scan subscription
+            # Subscriptions
             node.create_subscription(LaserScan, scan_topic, self._scan_callback, 10)
+            node.create_subscription(OccupancyGrid, map_topic, self._map_callback, 10)
             
             self._is_connected = True
             self.statusChanged.emit()
+            
+            last_tf_update = 0
             while self.active and rclpy.ok():
-                rclpy.spin_once(node, timeout_sec=0.1)
+                rclpy.spin_once(node, timeout_sec=0.05)
+                
+                # Periodically look up TF if robot_frame is provided
+                import time
+                now = time.time()
+                if now - last_tf_update > 0.1: # 10Hz
+                    try:
+                        # Try to get transform from map to robot_frame
+                        t = tf_buffer.lookup_transform('map', robot_frame, rclpy.time.Time())
+                        self._x = t.transform.translation.x
+                        self._y = t.transform.translation.y
+                        self._theta = self._quat_to_yaw(t.transform.rotation)
+                        self.poseChanged.emit()
+                    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                        pass # Frame not available yet
+                    last_tf_update = now
         except Exception as e:
             print(f"ROS2 Thread Error: {e}")
         finally:
@@ -162,12 +193,7 @@ class ROSManager(QObject):
             # We don't shutdown rclpy globally here as other parts might use it,
             # but if it was the only node, we could. For now, let's just exit.
 
-    def _pose_callback(self, msg):
-        self._use_simulation = False
-        self._x = msg.pose.pose.position.x
-        self._y = msg.pose.pose.position.y
-        self._theta = self._quat_to_yaw(msg.pose.pose.orientation)
-        self.poseChanged.emit()
+
 
     def _scan_callback(self, msg):
         self._use_simulation = False
@@ -176,14 +202,16 @@ class ROSManager(QObject):
         # For simplicity in UI, we'll downsample to 360 or just expose the raw data
         # Let's just pass it through as a list
         self._scan_data = list(msg.ranges)
+        self._scan_angle_min = msg.angle_min
+        self._scan_angle_increment = msg.angle_increment
         self.scanChanged.emit()
 
-    def _pose_stamped_callback(self, msg):
+    def _map_callback(self, msg):
         self._use_simulation = False
-        self._x = msg.pose.position.x
-        self._y = msg.pose.position.y
-        self._theta = self._quat_to_yaw(msg.pose.orientation)
-        self.poseChanged.emit()
+        # We pass the message object to be processed by MapController
+        self.mapReceived.emit(msg)
+
+
 
     def _quat_to_yaw(self, q):
         siny_cosp = 2 * (q.w * q.z + q.x * q.y)

@@ -3,6 +3,7 @@ import yaml
 import json
 import base64
 import cv2
+import time
 from pathlib import Path
 from PIL import Image
 import numpy as np
@@ -67,6 +68,7 @@ class MapController(QObject):
         self._width = 0
         self._height = 0
         self._image_path = ""
+        self._last_map_update_time = 0
         
     @Property(float, notify=resolutionChanged)
     def resolution(self):
@@ -137,6 +139,56 @@ class MapController(QObject):
             except Exception as e:
                 print(f"Error reading PGM: {e}")
                 
+    @Slot(object)
+    def handleRosMap(self, msg):
+        """Processes a nav_msgs/OccupancyGrid message."""
+        now = time.time()
+        if now - self._last_map_update_time < 5.0:
+            return
+            
+        self._last_map_update_time = now
+        
+        try:
+            info = msg.info
+            width = info.width
+            height = info.height
+            resolution = info.resolution
+            
+            # Convert OccupancyGrid data (-1 to 100) to grayscale (0 to 255)
+            # ROS convention: 0=free, 100=occupied, -1=unknown
+            # We want: 255=free, 0=occupied, 127=unknown
+            data = np.array(msg.data, dtype=np.int8).reshape((height, width))
+            
+            grayscale = np.zeros((height, width), dtype=np.uint8)
+            grayscale[data == 0] = 255
+            grayscale[data == 100] = 0
+            grayscale[data == -1] = 127
+            
+            # For values between 0 and 100 that are not exactly 0 or 100
+            mask = (data > 0) & (data < 100)
+            grayscale[mask] = (255 - (data[mask] * 2.55)).astype(np.uint8)
+            
+            # Flip vertically because ROS map origin is bottom-left, QImage is top-left
+            grayscale = np.flipud(grayscale)
+            grayscale = np.ascontiguousarray(grayscale)
+            
+            # Convert to QImage
+            qimg = QImage(grayscale.data, width, height, width, QImage.Format_Grayscale8)
+            
+            self._provider.set_image(qimg.copy())
+            self._width = width
+            self._height = height
+            self._resolution = resolution
+            self._origin = [info.origin.position.x, info.origin.position.y, info.origin.position.z]
+            
+            self.resolutionChanged.emit()
+            self.originChanged.emit()
+            self.mapLoaded.emit()
+            
+            print(f"ROS Map updated: {width}x{height} at resolution {resolution}")
+            
+        except Exception as e:
+            print(f"Error processing ROS map: {e}")
 
     @Slot(str)
     def saveMergedMap(self, base64_image_data):
@@ -174,16 +226,21 @@ class MapController(QObject):
             
             # 2. Merge with original PGM map
             original_pgm_path = self._project_manager.getOriginalMap()
+            project_dir = Path(self._project_manager.projectPath)
+            
+            # If this is a SLAM project starting from scratch, original_map might be empty in mepro
             if not original_pgm_path:
-                print("Error: original map path invalid:", original_pgm_path)
-                return
-                
+                original_pgm_path = str(project_dir / "original_map.pgm")
+                print(f"Creating initial original map for SLAM project: {original_pgm_path}")
+
             # Save the current main map (which may have been updated from ROS) as the original map
+            # This is CRITICAL for SLAM mode so we have a base to merge onto.
             if not self._provider.image.isNull():
                 self._provider.image.save(original_pgm_path)
+                print(f"Saved current ROS map to {original_pgm_path}")
                 
             if not Path(original_pgm_path).exists():
-                print("Error: original map path invalid:", original_pgm_path)
+                print("Error: original map path invalid or could not be created:", original_pgm_path)
                 return
                 
             orig_map = cv2.imread(original_pgm_path, cv2.IMREAD_GRAYSCALE)
@@ -204,13 +261,9 @@ class MapController(QObject):
             print(f"Saved merged map to: {merged_path}")
             
             # 3. Create/update YAML metadata
-            proj_resolution = self._project_manager.getResolution()
-            
-            # Generate the ROS-compatible YAML
             yaml_data = {
                 "image": "merged_map.pgm",
-
-                "resolution": proj_resolution,
+                "resolution": self._resolution,
                 "origin": self._origin if self._origin else [0.0, 0.0, 0.0],
                 "negate": 0,
                 "occupied_thresh": 0.65,
@@ -219,25 +272,21 @@ class MapController(QObject):
             
             with open(yaml_path, 'w') as f:
                 yaml.dump(yaml_data, f, default_flow_style=False)
-            print(f"Saved YAML to: {yaml_path}")
+            print(f"Saved merged YAML to: {yaml_path}")
             
-            # Update the original map YAML with latest metadata from MapController
+            # 3b. Create/Update original_map.yaml
             original_yaml_path = project_dir / "original_map.yaml"
-            if original_yaml_path.exists():
-                try:
-                    with open(original_yaml_path, 'r') as f:
-                        orig_yaml_data = yaml.safe_load(f)
-                        if orig_yaml_data is None:
-                            orig_yaml_data = {}
-                            
-                    orig_yaml_data["resolution"] = self._resolution
-                    orig_yaml_data["origin"] = self._origin if self._origin else [0.0, 0.0, 0.0]
-                    
-                    with open(original_yaml_path, 'w') as f:
-                        yaml.dump(orig_yaml_data, f, default_flow_style=False)
-                    print(f"Updated original YAML at: {original_yaml_path}")
-                except Exception as e:
-                    print(f"Warning: Failed to update original map yaml: {e}")
+            orig_yaml_data = {
+                "image": "original_map.pgm",
+                "resolution": self._resolution,
+                "origin": self._origin if self._origin else [0.0, 0.0, 0.0],
+                "negate": 0,
+                "occupied_thresh": 0.65,
+                "free_thresh": 0.196
+            }
+            with open(original_yaml_path, 'w') as f:
+                yaml.dump(orig_yaml_data, f, default_flow_style=False)
+            print(f"Saved/Updated original YAML at: {original_yaml_path}")
             
             # 4. Update the mepro project file
             mepro_path = project_dir / f"{self._project_manager.projectName}.mepro"
@@ -245,11 +294,15 @@ class MapController(QObject):
                 with open(mepro_path, 'r') as f:
                     mepro_data = json.load(f)
                 
+                mepro_data["original_map"] = "original_map.pgm"
+                mepro_data["original_yaml"] = "original_map.yaml"
                 mepro_data["edited_overlay"] = edit_layer_path.name
                 mepro_data["merged_map"] = merged_path.name
+                mepro_data["resolution"] = self._resolution
                 
                 with open(mepro_path, 'w') as f:
                     json.dump(mepro_data, f, indent=4)
+                print(f"Updated mepro file at {mepro_path}")
                     
         except Exception as e:
             print(f"Error saving merged map: {e}")

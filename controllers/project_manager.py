@@ -18,10 +18,11 @@ class ProjectManager(QObject):
         self._is_loaded = False
         self._layers = []
         self._edited_overlay = ""
-        self._robot_topic = "/pose"
         self._map_topic = "/map"
         self._scan_topic = "/scan"
         self._mapping_param = "/slam_toolbox/mapping_enabled"
+        self._tf_topic = "/tf"
+        self._robot_frame = "base_link"
 
     @Property(str, notify=projectLoaded)
     def projectName(self):
@@ -32,9 +33,6 @@ class ProjectManager(QObject):
         return self._project_path
 
     @Property(str, notify=projectLoaded)
-    def robotTopic(self): return self._robot_topic
-
-    @Property(str, notify=projectLoaded)
     def mapTopic(self): return self._map_topic
 
     @Property(str, notify=projectLoaded)
@@ -42,6 +40,12 @@ class ProjectManager(QObject):
 
     @Property(str, notify=projectLoaded)
     def mappingEnabledParam(self): return self._mapping_param
+
+    @Property(str, notify=projectLoaded)
+    def tfTopic(self): return self._tf_topic
+
+    @Property(str, notify=projectLoaded)
+    def robotFrame(self): return self._robot_frame
 
     @Property(bool, notify=projectLoaded)
     def isLoaded(self):
@@ -52,35 +56,38 @@ class ProjectManager(QObject):
             return uri[7:]
         return uri
 
-    @Slot(str, str, str, str, str, str, str, str, str, result=bool)
-    def createProject(self, name, folder_uri, map_uri, yaml_uri, resolution_str, robot_topic="/pose", map_topic="/map", scan_topic="/scan", mapping_param=""):
+    @Slot(str, str, str, str, str, str, str, str, str, str, result=bool)
+    def createProject(self, name, folder_uri, map_uri, yaml_uri, resolution_str, map_topic="/map", scan_topic="/scan", mapping_param="", tf_topic="/tf", robot_frame="base_link"):
         import shutil
         try:
             folder_path = self._uri_to_path(folder_uri)
             map_path = self._uri_to_path(map_uri)
             yaml_path = self._uri_to_path(yaml_uri)
             
-            if not name or not map_path or not folder_path:
-                self.errorOccurred.emit("Project name, map file, and folder path are required.")
+            if not name or not folder_path:
+                self.errorOccurred.emit("Project name and folder path are required.")
                 return False
 
-            map_path_obj = Path(map_path)
-            if not map_path_obj.exists():
-                self.errorOccurred.emit("Original map file does not exist.")
-                return False
+            new_map_path = None
+            if map_path:
+                map_path_obj = Path(map_path)
+                if not map_path_obj.exists():
+                    self.errorOccurred.emit("Original map file does not exist.")
+                    return False
+                
+                project_dir = Path(folder_path) / name
+                project_dir.mkdir(parents=True, exist_ok=True)
+                
+                new_map_path = project_dir / "original_map.pgm"
+                shutil.copy(map_path_obj, new_map_path)
+            else:
+                project_dir = Path(folder_path) / name
+                project_dir.mkdir(parents=True, exist_ok=True)
 
-            project_dir = Path(folder_path) / name
             mepro_path = project_dir / f"{name}.mepro"
-            
             if mepro_path.exists():
                 self.errorOccurred.emit("Project already exists or .mepro file found in the target directory.")
                 return False
-                
-            project_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Copy map and yaml to project directory
-            new_map_path = project_dir / "original_map.pgm"
-            shutil.copy(map_path_obj, new_map_path)
             
             new_yaml_path = None
             if yaml_path and Path(yaml_path).exists():
@@ -104,15 +111,16 @@ class ProjectManager(QObject):
             
             data = {
                 "project_name": name,
-                "original_map": new_map_path.name,
+                "original_map": new_map_path.name if new_map_path else "",
                 "original_yaml": new_yaml_path.name if new_yaml_path else "",
                 "resolution": res,
                 "edited_overlay": "",
                 "merged_map": "",
-                "robot_topic": robot_topic,
                 "map_topic": map_topic,
                 "scan_topic": scan_topic,
                 "mapping_param": mapping_param,
+                "tf_topic": tf_topic,
+                "robot_frame": robot_frame,
                 "gates_yaml": "gates_list.yaml"
             }
             
@@ -121,13 +129,14 @@ class ProjectManager(QObject):
                 
             self._project_name = name
             self._project_path = str(project_dir)
-            self._map_file = str(new_map_path)
+            self._map_file = str(new_map_path) if new_map_path else ""
             self._yaml_file = str(new_yaml_path) if new_yaml_path else ""
             self._resolution = res
-            self._robot_topic = robot_topic
             self._map_topic = map_topic
             self._scan_topic = scan_topic
             self._mapping_param = mapping_param
+            self._tf_topic = tf_topic
+            self._robot_frame = robot_frame
             self._is_loaded = True
             
             self.projectLoaded.emit()
@@ -154,10 +163,11 @@ class ProjectManager(QObject):
             self._resolution = data.get("resolution", 0.05)
             self._layers = data.get("layers", [])
             self._edited_overlay = data.get("edited_overlay", "")
-            self._robot_topic = data.get("robot_topic", "/pose")
             self._map_topic = data.get("map_topic", "/map")
             self._scan_topic = data.get("scan_topic", "/scan")
             self._mapping_param = data.get("mapping_param", "")
+            self._tf_topic = data.get("tf_topic", "/tf")
+            self._robot_frame = data.get("robot_frame", "base_link")
             self._gates_yaml = data.get("gates_yaml", "gates_list.yaml")
             
             self._is_loaded = True

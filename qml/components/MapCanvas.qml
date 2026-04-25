@@ -94,11 +94,55 @@ Rectangle {
 
     Connections {
         target: mapController
+        
+        // Track old values for stability
+        property real oldRes: 0
+        property var oldOrigin: [0,0,0]
+        property real oldHeight: 0
+        property bool firstLoad: true
+
         function onMapLoaded() {
-            mapReloadTicker++
-            fitMap()
-            updateScaleIndicator()
-            editCanvas.requestPaint()
+            let newRes = mapController.resolution;
+            let newOrigin = mapController.origin;
+            
+            if (firstLoad) {
+                mapReloadTicker++;
+                fitMap();
+                oldRes = newRes;
+                oldOrigin = newOrigin;
+                oldHeight = mapController.mapHeight;
+                firstLoad = false;
+            } else {
+                let newHeight = mapController.mapHeight;
+                
+                // Reference point: the old origin in world coordinates
+                // Its old pixel position was (0, oldHeight)
+                let oldRefPxX = 0;
+                let oldRefPxY = oldHeight;
+                
+                // Its new pixel position:
+                let newRefPxX = (oldOrigin[0] - newOrigin[0]) / newRes;
+                let newRefPxY = newHeight - (oldOrigin[1] - newOrigin[1]) / newRes;
+                
+                // Adjust scale if resolution changed
+                let oldScale = currentScale;
+                if (oldRes > 0 && newRes !== oldRes) {
+                    currentScale = oldScale * (newRes / oldRes);
+                }
+                
+                // Adjust pan to keep the reference point at the same screen position
+                // ScreenPos = Pan + Px * Scale
+                // NewPan = OldPan + OldPx * OldScale - NewPx * NewScale
+                viewport.panX = viewport.panX + (oldRefPxX * oldScale) - (newRefPxX * currentScale);
+                viewport.panY = viewport.panY + (oldRefPxY * oldScale) - (newRefPxY * currentScale);
+                
+                mapReloadTicker++;
+                oldRes = newRes;
+                oldOrigin = newOrigin;
+                oldHeight = newHeight;
+            }
+            updateScaleIndicator();
+            editCanvas.requestPaint();
         }
     }
     
@@ -156,9 +200,7 @@ Rectangle {
 
             Item {
                 id: mapSpace
-                width: parent.width
-                height: parent.height
-                anchors.centerIn: parent
+                anchors.fill: parent
                 rotation: mapRotation
 
                 
@@ -168,7 +210,7 @@ Rectangle {
                     anchors.fill: parent
                     source: "image://map_provider/map?id=" + mapCanvasRoot.mapReloadTicker
                     asynchronous: false
-                    fillMode: Image.PreserveAspectFit
+                    fillMode: Image.Stretch
                     smooth: false 
                     visible: (mapController ? mapController.mapWidth : 0) > 0
                 }
@@ -445,16 +487,20 @@ Rectangle {
                     id: robotMarker
                     // Use a fixed size for the container to maintain high resolution
                     width: 24; height: 24
+                    
+                    property real _res: (mapController && mapController.resolution > 0) ? mapController.resolution : 0.05
+                    property var _origin: (mapController && mapController.origin) ? mapController.origin : [0,0,0]
+                    
                     // Position it using logical map coordinates
                     x: px - (width / 2)
                     y: py - (height / 2)
                     // Use scale to keep the marker visually the same size on screen while zooming
                     scale: 1.0 / currentScale
                     
-                    property real px: (mapController ? mapController.mapWidth : 0) > 0 ? ((robotHandler ? robotHandler.x : 0) - (mapController ? mapController.origin : [0,0,0])[0]) / (mapController ? mapController.resolution : 0) : 0
-                    property real py: (mapController ? mapController.mapHeight : 0) > 0 ? (mapController ? mapController.mapHeight : 0) - (((robotHandler ? robotHandler.y : 0) - (mapController ? mapController.origin : [0,0,0])[1]) / (mapController ? mapController.resolution : 0)) : 0
+                    property real px: (mapController ? mapController.mapWidth : 0) > 0 ? ((robotHandler ? robotHandler.x : 0) - _origin[0]) / _res : 0
+                    property real py: (mapController ? mapController.mapHeight : 0) > 0 ? (mapController ? mapController.mapHeight : 0) - (((robotHandler ? robotHandler.y : 0) - _origin[1]) / _res) : 0
 
-                    rotation: -(robotHandler ? robotHandler.theta : 0) * (180 / Math.PI)
+                    rotation: 90 - (robotHandler ? robotHandler.theta : 0) * (180 / Math.PI) + mapRotation
                     visible: ((mapController ? mapController.mapWidth : 0) > 0) && root.showRobot
 
                     // Laser Scan Canvas has been moved to viewport overlay
@@ -597,18 +643,23 @@ Rectangle {
                 ctx.strokeStyle = "rgba(0, 255, 128, 0.6)";
                 ctx.lineWidth = 2;
                 
-                let step = 360 / scan.length;
+                let step = robotHandler ? robotHandler.scanAngleIncrement : (Math.PI * 2 / 360);
+                let angle_min = robotHandler ? robotHandler.scanAngleMin : -Math.PI;
                 let first = true;
                 
                 // Calculate the global rotation angle for the rays
-                let totalRot = (mapRotation * Math.PI / 180) - (robotHandler ? robotHandler.theta : 0);
+                // In JS Canvas: 0 is Right, positive is Clockwise.
+                // In ROS: 0 is Right, positive is Counter-Clockwise.
+                // mapRotation is clockwise.
+                let robotTheta = robotHandler ? robotHandler.theta : 0;
+                let mapRotRad = (mapRotation * Math.PI / 180);
                 
                 for (let i = 0; i < scan.length; i++) {
                     let dist = scan[i];
                     if (dist <= 0.1 || dist > 30.0) continue; 
                     
-                    let baseAngle = (i * step - 90) * (Math.PI / 180);
-                    let globalAngle = baseAngle + totalRot;
+                    // Angle of the ray relative to the map (in JS Canvas coordinates)
+                    let globalAngle = -(robotTheta + angle_min + i * step) + mapRotRad;
                     
                     let distPx = (dist / res) * currentScale;
                     
@@ -625,8 +676,8 @@ Rectangle {
                     let dist = scan[i];
                     if (dist <= 0.1 || dist > 30.0) continue;
                     
-                    let baseAngle = (i * step - 90) * (Math.PI / 180);
-                    let globalAngle = baseAngle + totalRot;
+                    // Angle of the ray relative to the map (in JS Canvas coordinates)
+                    let globalAngle = -(robotTheta + angle_min + i * step) + mapRotRad;
                     
                     let distPx = (dist / res) * currentScale;
                     
@@ -756,8 +807,10 @@ Rectangle {
                 mouseMapPxY = pt.y
                 
                 if ((mapController ? mapController.resolution : 0) > 0) {
-                    mouseMapMeterX = (mapController ? mapController.origin : [0,0,0])[0] + pt.x * (mapController ? mapController.resolution : 0)
-                    mouseMapMeterY = (mapController ? mapController.origin : [0,0,0])[1] + ((mapController ? mapController.mapHeight : 0) - pt.y) * (mapController ? mapController.resolution : 0)
+                    let _m_res = mapController.resolution
+                    let _m_org = mapController.origin || [0,0,0]
+                    mouseMapMeterX = _m_org[0] + pt.x * _m_res
+                    mouseMapMeterY = _m_org[1] + ((mapController.mapHeight) - pt.y) * _m_res
                 }
 
                 // Track cursor position in viewport space for the colored cursor overlay
