@@ -38,6 +38,8 @@ Rectangle {
     property string activeMode: "project" // "project", "map-edit", "layers", "gates"
     property bool showRobot: true
     property bool showLaserScan: true
+    property bool safetyLockEnabled: true
+    property bool editingDisabled: safetyLockEnabled && isSlamMode
 
     
     // Map Edit State

@@ -16,6 +16,7 @@ Item {
     property bool autoSave: autoSaveCb.checked
     property alias showRobot: showRobotCb.checked
     property alias showLaserScan: showLaserScanCb.checked
+    property alias safetyLockEnabled: safetyLockCb.checked
 
     ScrollView {
         id: scroll
@@ -201,6 +202,13 @@ Item {
                 text: "Show Laser Scan"
                 checked: true
                 contentItem: Text { text: parent.text; color: "#d1d5db"; font.pixelSize: 13; leftPadding: showLaserScanCb.indicator.width + parent.spacing; verticalAlignment: Text.AlignVCenter }
+            }
+
+            CheckBox {
+                id: safetyLockCb
+                text: "Editing Safety Lock (Disable edit in Mapping)"
+                checked: true
+                contentItem: Text { text: parent.text; color: "#ef4444"; font.pixelSize: 13; font.bold: true; leftPadding: safetyLockCb.indicator.width + parent.spacing; verticalAlignment: Text.AlignVCenter }
             }
 
             Item { Layout.fillHeight: true; Layout.minimumHeight: 20 }

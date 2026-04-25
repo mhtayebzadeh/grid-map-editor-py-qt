@@ -217,7 +217,7 @@ Item {
                                             }
                                             Rectangle {
                                                 width: 28; height: 28; color: "#374151"; radius: 4
-                                                Text { anchors.centerIn: parent; text: "File..."; color: "white" }
+                                                Text { anchors.centerIn: parent; text: "..."; color: "white" }
                                                 MouseArea {
                                                     anchors.fill: parent
                                                     onClicked: {

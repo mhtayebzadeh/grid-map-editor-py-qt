@@ -20,7 +20,7 @@ Rectangle {
 
         // MODE Header
         Text {
-            text: "MODE"
+            text: "MODE: " + (root.isSlamMode ? "MAPPING" : "EDITING")
             color: "#a0a5ab"
             font.bold: true
             font.pixelSize: 12
@@ -94,10 +94,19 @@ Rectangle {
                 
                 showLaserScan: root.showLaserScan
                 onShowLaserScanChanged: root.showLaserScan = showLaserScan
+
+                safetyLockEnabled: root.safetyLockEnabled
+                onSafetyLockEnabledChanged: root.safetyLockEnabled = safetyLockEnabled
             }
-            MapEditTab {}
-            LayersTab {}
-            GatesTab {}
+            MapEditTab {
+                enabled: !root.editingDisabled
+            }
+            LayersTab {
+                enabled: !root.editingDisabled
+            }
+            GatesTab {
+                enabled: !root.editingDisabled
+            }
         }
 
         // BOTTOM AREA - Fixed height

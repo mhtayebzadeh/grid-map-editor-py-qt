@@ -708,7 +708,7 @@ Rectangle {
                     isFollowingRobot = false
                     lastPanX = mouse.x
                     lastPanY = mouse.y
-                } else if (mouse.button === Qt.LeftButton && (mapController ? mapController.mapWidth : 0) > 0) {
+                } else if (mouse.button === Qt.LeftButton && (mapController ? mapController.mapWidth : 0) > 0 && !root.editingDisabled) {
                     let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
                     let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
                     
