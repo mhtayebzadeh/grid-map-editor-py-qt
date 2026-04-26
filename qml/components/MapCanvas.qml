@@ -500,7 +500,7 @@ Rectangle {
                     property real px: (mapController ? mapController.mapWidth : 0) > 0 ? ((robotHandler ? robotHandler.x : 0) - _origin[0]) / _res : 0
                     property real py: (mapController ? mapController.mapHeight : 0) > 0 ? (mapController ? mapController.mapHeight : 0) - (((robotHandler ? robotHandler.y : 0) - _origin[1]) / _res) : 0
 
-                    rotation: 90 - (robotHandler ? robotHandler.theta : 0) * (180 / Math.PI) + mapRotation
+                    rotation: 90 - (robotHandler ? robotHandler.theta : 0) * (180 / Math.PI)
                     visible: ((mapController ? mapController.mapWidth : 0) > 0) && root.showRobot
 
                     // Laser Scan Canvas has been moved to viewport overlay

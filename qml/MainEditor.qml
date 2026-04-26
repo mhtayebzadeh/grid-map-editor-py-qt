@@ -330,9 +330,9 @@ Rectangle {
             ColumnLayout {
                 spacing: 4
                 Layout.fillWidth: true
-                Text { text: "Name"; color: "#d1d5db"; font.pixelSize: 12 }
+                Text { text: "Name *"; color: addGateDialog.gateName.trim() === "" ? "#ef4444" : "#d1d5db"; font.pixelSize: 12 }
                 Rectangle {
-                    Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#374151"
+                    Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: addGateDialog.gateName.trim() === "" ? "#ef4444" : "#374151"
                     TextInput { anchors.fill: parent; anchors.margins: 8; color: "white"; font.pixelSize: 13; text: addGateDialog.gateName; onTextChanged: addGateDialog.gateName = text }
                 }
             }
@@ -342,8 +342,14 @@ Rectangle {
                 Layout.fillWidth: true
                 Text { text: "Description"; color: "#d1d5db"; font.pixelSize: 12 }
                 Rectangle {
-                    Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#374151"
-                    TextInput { anchors.fill: parent; anchors.margins: 8; color: "white"; font.pixelSize: 13; text: addGateDialog.gateDesc; onTextChanged: addGateDialog.gateDesc = text }
+                    Layout.fillWidth: true; height: 60; color: "#111827"; radius: 4; border.color: "#374151"
+                    TextEdit { 
+                        anchors.fill: parent; anchors.margins: 8; color: "white"; font.pixelSize: 13; 
+                        text: addGateDialog.gateDesc; 
+                        onTextChanged: addGateDialog.gateDesc = text
+                        wrapMode: Text.Wrap
+                        selectByMouse: true
+                    }
                 }
             }
             
@@ -380,10 +386,12 @@ Rectangle {
                     MouseArea { anchors.fill: parent; onClicked: { root.pendingGateModel = null; addGateDialog.close() } }
                 }
                 Rectangle {
-                    width: 80; height: 32; color: "#2563eb"; radius: 4
+                    width: 80; height: 32; color: addGateDialog.gateName.trim() === "" ? "#4b5563" : "#2563eb"; radius: 4
+                    opacity: addGateDialog.gateName.trim() === "" ? 0.5 : 1.0
                     Text { anchors.centerIn: parent; text: "Confirm"; color: "white"; font.pixelSize: 13; font.bold: true }
                     MouseArea { 
                         anchors.fill: parent
+                        enabled: addGateDialog.gateName.trim() !== ""
                         onClicked: {
                             if (root.pendingGateModel) {
                                 let newGid = getNextIncrementalGateId(root.pendingGateCategoryId);

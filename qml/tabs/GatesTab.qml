@@ -150,11 +150,15 @@ Item {
                                         Layout.fillWidth: true
                                         Text { text: "Name"; color: "#9ca3af"; font.pixelSize: 11; Layout.preferredWidth: 60 }
                                         Rectangle {
-                                            Layout.fillWidth: true; height: 28; color: "#111827"; radius: 4; border.color: "#374151"
+                                            Layout.fillWidth: true; height: 28; color: "#111827"; radius: 4; border.color: model.name.trim() === "" ? "#ef4444" : "#374151"
                                             TextInput {
                                                 anchors.fill: parent; anchors.margins: 6; color: "white"; font.pixelSize: 12
                                                 text: model.name
                                                 onEditingFinished: {
+                                                    if (text.trim() === "") {
+                                                        text = model.name; // revert UI
+                                                        return;
+                                                    }
                                                     categoryDelegate.catModel.setProperty(gateRect.gateIndex, "name", text)
                                                     let newPath = projectManager.copyGateImage(model.imageFile, categoryDelegate.catId, text, model.gateId, model.imageFile);
                                                     if (newPath !== model.imageFile) {
@@ -193,11 +197,17 @@ Item {
                                         Layout.fillWidth: true
                                         Text { text: "Desc"; color: "#9ca3af"; font.pixelSize: 11; Layout.preferredWidth: 60 }
                                         Rectangle {
-                                            Layout.fillWidth: true; height: 28; color: "#111827"; radius: 4; border.color: "#374151"
-                                            TextInput {
+                                            Layout.fillWidth: true; height: 50; color: "#111827"; radius: 4; border.color: "#374151"
+                                            TextEdit {
                                                 anchors.fill: parent; anchors.margins: 6; color: "white"; font.pixelSize: 12
                                                 text: model.description
-                                                onEditingFinished: categoryDelegate.catModel.setProperty(gateRect.gateIndex, "description", text)
+                                                wrapMode: Text.Wrap
+                                                selectByMouse: true
+                                                onActiveFocusChanged: {
+                                                    if (!activeFocus) {
+                                                        categoryDelegate.catModel.setProperty(gateRect.gateIndex, "description", text)
+                                                    }
+                                                }
                                             }
                                         }
                                     }
