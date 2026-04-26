@@ -20,13 +20,16 @@ ApplicationWindow {
         property string mappingEnabledParam: "/slam_toolbox/mapping_enabled"
         property string tfTopic: "/tf"
         property string robotFrame: "base_link"
+        property string initialPoseTopic: "/initialpose"
+        property bool useSimTime: false
+        property real initialUncertainty: 1.5
     }
 
     StackView {
         id: stackView
         anchors.fill: parent
         initialItem: StartScreen {
-            onStartEditor: (isSlamMode, projectName, projectPath, mapFile, yamlFile, resolution, mapTopic, scanTopic, mappingParam, tfTopic, robotFrame) => {
+            onStartEditor: (isSlamMode, projectName, projectPath, mapFile, yamlFile, resolution, mapTopic, scanTopic, mappingParam, tfTopic, robotFrame, useSimTime) => {
                 
                 // If in edit mode, tell python to load the map!
                 if (!isSlamMode && (mapFile !== "" || yamlFile !== "")) {
@@ -41,7 +44,8 @@ ApplicationWindow {
                     "slamScanTopic": scanTopic,
                     "slamMappingEnabledParam": mappingParam,
                     "slamTfTopic": tfTopic,
-                    "slamRobotFrame": robotFrame
+                    "slamRobotFrame": robotFrame,
+                    "slamUseSimTime": useSimTime
                 })
             }
         }
@@ -66,12 +70,14 @@ ApplicationWindow {
         }
         
         MouseArea {
+            id: logToggleMouseArea
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
             onClicked: statusPanel.isOpen = !statusPanel.isOpen
         }
         
-        ToolTip.visible: hovered
+        ToolTip.visible: logToggleMouseArea.containsMouse
         ToolTip.text: "Show Logs & Status"
     }
 
@@ -131,10 +137,15 @@ ApplicationWindow {
         projectManager.tfTopic = slamSettings.tfTopic
         projectManager.robotFrame = slamSettings.robotFrame
         projectManager.mappingEnabledParam = slamSettings.mappingEnabledParam
+        projectManager.initialPoseTopic = slamSettings.initialPoseTopic
+        projectManager.useSimTime = slamSettings.useSimTime
+        projectManager.initialUncertainty = slamSettings.initialUncertainty
+        
+        robotHandler.initialUncertainty = projectManager.initialUncertainty
         
         refreshTopics()
         
         // Start ROS with these settings
-        robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame)
+        robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame, projectManager.initialPoseTopic, projectManager.useSimTime)
     }
 }

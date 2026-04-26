@@ -13,6 +13,7 @@ Rectangle {
     property real currentScale: 1.0
     property real mapRotation: 0.0
     property bool isFollowingRobot: false
+    property bool isSelectingInitPose: false
 
     property real mouseMapPxX: 0
     property real mouseMapPxY: 0
@@ -694,7 +695,7 @@ Rectangle {
         MouseArea {
             id: panZoomArea
             anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+            acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
             hoverEnabled: true
             
             property real lastPanX: 0
@@ -704,6 +705,24 @@ Rectangle {
             property var polyPts: []
             
             onPressed: (mouse) => {
+                if (mapCanvasRoot.isSelectingInitPose) {
+                    if (mouse.button === Qt.LeftButton) {
+                        let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
+                        if ((mapController ? mapController.resolution : 0) > 0) {
+                            let mapX = (mapController ? mapController.origin : [0,0,0])[0] + pt_raw.x * (mapController ? mapController.resolution : 0);
+                            let mapY = (mapController ? mapController.origin : [0,0,0])[1] + ((mapController ? mapController.mapHeight : 0) - pt_raw.y) * (mapController ? mapController.resolution : 0);
+                            
+                            robotHandler.publish_initial_pose(mapX, mapY, 0.0);
+                            mapCanvasRoot.isSelectingInitPose = false;
+                        }
+                    } else {
+                        // Cancel on any other button
+                        mapCanvasRoot.isSelectingInitPose = false;
+                        statusPanel.addLog("Initial pose selection canceled.", "warning")
+                    }
+                    return;
+                }
+
                 if (mouse.button === Qt.MiddleButton || (mouse.button === Qt.LeftButton && (mouse.modifiers & Qt.ControlModifier))) {
                     isFollowingRobot = false
                     lastPanX = mouse.x
@@ -832,6 +851,7 @@ Rectangle {
                 }
             }
             cursorShape: {
+                if (mapCanvasRoot.isSelectingInitPose) return Qt.CrossCursor;
                 if (root.pendingGateModel !== null) return Qt.CrossCursor;
                 if (isDrawing) return Qt.CrossCursor;
                 if (panZoomArea.pressedButtons & Qt.MiddleButton || (panZoomArea.pressedButtons & Qt.LeftButton && (Qt.keyboardModifiers & Qt.ControlModifier))) return Qt.SizeAllCursor;
@@ -911,6 +931,32 @@ Rectangle {
             width: 120; height: 36; color: isFollowingRobot ? "#2e4a66" : "#cc1e2329"; radius: 4; Layout.alignment: Qt.AlignRight; 
             Text { anchors.centerIn: parent; text: "⚲ Follow Robot"; color: "white" } 
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { isFollowingRobot = !isFollowingRobot; if (isFollowingRobot) focusRobot(); } }
+        }
+
+        Rectangle { 
+            width: 50; height: 36; color: navToolsPanel.visible ? "#2e4a66" : "#cc1e2329"; radius: 4; Layout.alignment: Qt.AlignRight; 
+            Text { anchors.centerIn: parent; text: "⚒️"; color: "white" } 
+            MouseArea { 
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor; 
+                onClicked: navToolsPanel.visible = !navToolsPanel.visible 
+            }
+        }
+
+        NavToolsPanel {
+            id: navToolsPanel
+            Layout.alignment: Qt.AlignRight
+            isSelectingInitPose: mapCanvasRoot.isSelectingInitPose
+            onIsSelectingInitPoseChanged: {
+                if (isSelectingInitPose !== mapCanvasRoot.isSelectingInitPose) {
+                    mapCanvasRoot.isSelectingInitPose = isSelectingInitPose
+                }
+            }
+        }
+    }
+
+    onIsSelectingInitPoseChanged: {
+        if (navToolsPanel.isSelectingInitPose !== isSelectingInitPose) {
+            navToolsPanel.isSelectingInitPose = isSelectingInitPose
         }
     }
 

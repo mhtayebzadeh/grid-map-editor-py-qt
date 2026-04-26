@@ -27,6 +27,7 @@ Rectangle {
     property string slamMappingEnabledParam: ""
     property string slamTfTopic: ""
     property string slamRobotFrame: ""
+    property bool slamUseSimTime: false
 
     // Global properties used by sub-tabs
     property string mapTopic: (projectManager && projectManager.isLoaded) ? projectManager.mapTopic : slamMapTopic
@@ -145,18 +146,19 @@ Rectangle {
             root.activeLayerId = layersModel.count > 0 ? layersModel.get(0).layerId : "";
             root.editLayerPath = projectManager ? projectManager.getEditedOverlay() : "";
             
-            if (projectManager && projectManager.isLoaded) {
+            if (projectManager.isLoaded) {
                 // Global Config takes priority over project-saved topics
                 if (root.slamMapTopic !== "") projectManager.mapTopic = root.slamMapTopic;
                 if (root.slamScanTopic !== "") projectManager.scanTopic = root.slamScanTopic;
                 if (root.slamTfTopic !== "") projectManager.tfTopic = root.slamTfTopic;
                 if (root.slamRobotFrame !== "") projectManager.robotFrame = root.slamRobotFrame;
                 if (root.slamMappingEnabledParam !== "") projectManager.mappingEnabledParam = root.slamMappingEnabledParam;
+                projectManager.useSimTime = root.slamUseSimTime;
 
-                robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame);
+                robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame, projectManager.initialPoseTopic, projectManager.useSimTime);
                 root.loadProjectGates();
             } else if (root.isSlamMode) {
-                robotHandler.start_ros(root.slamScanTopic, root.slamMapTopic, root.slamTfTopic, root.slamRobotFrame);
+                robotHandler.start_ros(root.slamScanTopic, root.slamMapTopic, root.slamTfTopic, root.slamRobotFrame, "/initialpose", root.slamUseSimTime);
             }
         }
     }

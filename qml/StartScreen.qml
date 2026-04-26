@@ -15,6 +15,9 @@ Rectangle {
         property alias mappingEnabledParam: slamMappingEnabledParamField.text
         property alias tfTopic: slamTfTopicField.text
         property alias robotFrame: slamRobotFrameField.text
+        property alias initialPoseTopic: slamInitPoseTopicField.text
+        property alias useSimTime: slamUseSimTimeCheck.checked
+        property alias initialUncertainty: slamInitUncertaintyField.text
     }
 
     Settings {
@@ -28,7 +31,7 @@ Rectangle {
         property string lastGateImageFolder: ""
     }
 
-    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution, string mapTopic, string scanTopic, string mappingParam, string tfTopic, string robotFrame)
+    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution, string mapTopic, string scanTopic, string mappingParam, string tfTopic, string robotFrame, bool useSimTime)
     property bool isEditMode: true
 
     // ROS CONFIGURATION POPUP (FLOATING ON TOP)
@@ -77,6 +80,7 @@ Rectangle {
                 projectManager.tfTopic = slamTfTopicField.text
                 projectManager.robotFrame = slamRobotFrameField.text
                 projectManager.mappingEnabledParam = slamMappingEnabledParamField.text
+                projectManager.initialPoseTopic = slamInitPoseTopicField.text
                 
                 // Update global settings for persistence
                 if (window.slamSettings) {
@@ -85,10 +89,13 @@ Rectangle {
                     window.slamSettings.tfTopic = slamTfTopicField.text
                     window.slamSettings.robotFrame = slamRobotFrameField.text
                     window.slamSettings.mappingEnabledParam = slamMappingEnabledParamField.text
+                    window.slamSettings.initialPoseTopic = slamInitPoseTopicField.text
+                    window.slamSettings.useSimTime = slamUseSimTimeCheck.checked
+                    window.slamSettings.initialUncertainty = parseFloat(slamInitUncertaintyField.text) || 1.5
                 }
                 
                 // Restart ROS to check topic availability on first page
-                robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame)
+                robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame, projectManager.initialPoseTopic, projectManager.useSimTime)
             }
         }
 
@@ -177,6 +184,49 @@ Rectangle {
                         color: "white"
                         font.pixelSize: 13
                         padding: 8
+                        background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.columnSpan: 2
+                    spacing: 4
+                    Text { text: "Initial Pose Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                    TextField {
+                        id: slamInitPoseTopicField
+                        Layout.fillWidth: true
+                        text: "/initialpose"
+                        color: "white"
+                        font.pixelSize: 13
+                        padding: 8
+                        background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                    }
+                }
+
+                CheckBox {
+                    id: slamUseSimTimeCheck
+                    Layout.columnSpan: 1
+                    text: "Use Simulation Time"
+                    font.pixelSize: 12
+                    font.bold: true
+                    palette.windowText: "white"
+                    checked: false
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.columnSpan: 1
+                    spacing: 4
+                    Text { text: "Init Uncertainty (m)"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                    TextField {
+                        id: slamInitUncertaintyField
+                        Layout.fillWidth: true
+                        text: "1.5"
+                        color: "white"
+                        font.pixelSize: 13
+                        padding: 8
+                        validator: DoubleValidator { bottom: 0.1; top: 10.0 }
                         background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
                     }
                 }
@@ -598,7 +648,7 @@ Rectangle {
         onAccepted: {
             folderSettings.lastProjectSaveFolder = currentFolder
             if (projectManager.createProject(projNameField.text, currentFolder.toString(), mapPathField.text, yamlPathField.text, resField.text, slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text)
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked)
             }
         }
     }
@@ -611,7 +661,7 @@ Rectangle {
         onAccepted: {
             folderSettings.lastOpenProjectFolder = currentFolder
             if (projectManager.openProject(selectedFile.toString().replace("file://", ""))) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text)
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked)
             }
         }
     }
@@ -624,7 +674,7 @@ Rectangle {
         onAccepted: {
             folderSettings.lastOpenProjectFolder = currentFolder
             if (projectManager.openProject(selectedFile.toString().replace("file://", ""))) {
-                root.startEditor(true, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text)
+                root.startEditor(true, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked)
             }
         }
     }

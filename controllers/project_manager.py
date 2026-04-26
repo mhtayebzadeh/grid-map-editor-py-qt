@@ -24,6 +24,30 @@ class ProjectManager(QObject):
         self._mapping_param = "/slam_toolbox/mapping_enabled"
         self._tf_topic = "/tf"
         self._robot_frame = "base_link"
+        self._init_pose_topic = "/initialpose"
+        self._use_sim_time = False
+        self._init_uncertainty = 1.5
+
+    @Property(str, notify=rosConfigChanged)
+    def initialPoseTopic(self): return self._init_pose_topic
+    @initialPoseTopic.setter
+    def initialPoseTopic(self, val): 
+        self._init_pose_topic = val
+        self.rosConfigChanged.emit()
+        
+    @Property(bool, notify=rosConfigChanged)
+    def useSimTime(self): return self._use_sim_time
+    @useSimTime.setter
+    def useSimTime(self, val): 
+        self._use_sim_time = val
+        self.rosConfigChanged.emit()
+
+    @Property(float, notify=rosConfigChanged)
+    def initialUncertainty(self): return self._init_uncertainty
+    @initialUncertainty.setter
+    def initialUncertainty(self, val): 
+        self._init_uncertainty = val
+        self.rosConfigChanged.emit()
 
     @Property(str, notify=projectLoaded)
     def projectName(self):
@@ -66,6 +90,13 @@ class ProjectManager(QObject):
     @robotFrame.setter
     def robotFrame(self, val): 
         self._robot_frame = val
+        self.rosConfigChanged.emit()
+
+    @Property(str, notify=rosConfigChanged)
+    def initialPoseTopic(self): return self._init_pose_topic
+    @initialPoseTopic.setter
+    def initialPoseTopic(self, val): 
+        self._init_pose_topic = val
         self.rosConfigChanged.emit()
 
     @Property(bool, notify=projectLoaded)
@@ -142,6 +173,9 @@ class ProjectManager(QObject):
                 "mapping_param": mapping_param,
                 "tf_topic": tf_topic,
                 "robot_frame": robot_frame,
+                "initial_pose_topic": self._init_pose_topic,
+                "use_sim_time": self._use_sim_time,
+                "initial_uncertainty": self._init_uncertainty,
                 "gates_yaml": "gates_list.yaml"
             }
             
@@ -189,6 +223,9 @@ class ProjectManager(QObject):
             self._mapping_param = data.get("mapping_param", "")
             self._tf_topic = data.get("tf_topic", "/tf")
             self._robot_frame = data.get("robot_frame", "base_link")
+            self._init_pose_topic = data.get("initial_pose_topic", "/initialpose")
+            self._use_sim_time = data.get("use_sim_time", False)
+            self._init_uncertainty = data.get("initial_uncertainty", 1.5)
             self._gates_yaml = data.get("gates_yaml", "gates_list.yaml")
             
             self._is_loaded = True
@@ -256,6 +293,9 @@ class ProjectManager(QObject):
             data["mapping_param"] = self._mapping_param
             data["tf_topic"] = self._tf_topic
             data["robot_frame"] = self._robot_frame
+            data["initial_pose_topic"] = self._init_pose_topic
+            data["use_sim_time"] = self._use_sim_time
+            data["initial_uncertainty"] = self._init_uncertainty
 
             now_iso = datetime.datetime.now().isoformat()
             if "createdAt" not in data:
