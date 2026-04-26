@@ -212,6 +212,9 @@ class MapController(QObject):
                 return
 
             header, encoded = base64_image_data.split(",", 1)
+            if not encoded:
+                print("Error saving merged map: Received empty image data")
+                return
             image_bytes = base64.b64decode(encoded)
             
             overlay_arr = np.frombuffer(image_bytes, dtype=np.uint8)

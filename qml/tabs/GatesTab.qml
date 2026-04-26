@@ -197,15 +197,23 @@ Item {
                                         Layout.fillWidth: true
                                         Text { text: "Desc"; color: "#9ca3af"; font.pixelSize: 11; Layout.preferredWidth: 60 }
                                         Rectangle {
-                                            Layout.fillWidth: true; height: 50; color: "#111827"; radius: 4; border.color: "#374151"
-                                            TextEdit {
-                                                anchors.fill: parent; anchors.margins: 6; color: "white"; font.pixelSize: 12
-                                                text: model.description
-                                                wrapMode: Text.Wrap
-                                                selectByMouse: true
-                                                onActiveFocusChanged: {
-                                                    if (!activeFocus) {
-                                                        categoryDelegate.catModel.setProperty(gateRect.gateIndex, "description", text)
+                                            id: descRect
+                                            Layout.fillWidth: true; height: 50; color: "#111827"; radius: 4; border.color: "#374151"; clip: true
+                                            ScrollView {
+                                                anchors.fill: descRect
+                                                clip: true
+                                                TextEdit {
+                                                    width: descRect.width - 16
+                                                    anchors.centerIn: descRect
+                                                    padding: 8
+                                                    color: "white"; font.pixelSize: 12
+                                                    text: model.description
+                                                    wrapMode: Text.Wrap
+                                                    selectByMouse: true
+                                                    onActiveFocusChanged: {
+                                                        if (!activeFocus) {
+                                                            categoryDelegate.catModel.setProperty(gateRect.gateIndex, "description", text)
+                                                        }
                                                     }
                                                 }
                                             }

@@ -11,6 +11,11 @@ Rectangle {
 
     property int mapReloadTicker: 0
     property real currentScale: 1.0
+    property int canvasWidth: 0
+    property int canvasHeight: 0
+    property var pendingSnapshots: ({})
+    property real snapOffsetX: 0
+    property real snapOffsetY: 0
     property real mapRotation: 0.0
     property bool isFollowingRobot: false
     property bool isSelectingInitPose: false
@@ -71,7 +76,39 @@ Rectangle {
     }
 
     function saveCanvasOverlay() {
+        if (canvasWidth <= 0 || canvasHeight <= 0) return "";
         return editCanvas.toDataURL("image/png");
+    }
+
+    function captureCanvases() {
+        let snapshots = mapCanvasRoot.pendingSnapshots || { layers: {} };
+        if (!snapshots.layers) snapshots.layers = {};
+
+        // Only capture from editCanvas if we don't already have a pending snapshot for it
+        if (!snapshots.edit) {
+            snapshots.edit = editCanvas.toDataURL("image/png");
+        }
+
+        for (let i = 0; i < layerRepeater.count; i++) {
+            let layerId = layersModel.get(i).layerId;
+            // Only capture if we don't already have a pending snapshot for this specific layer
+            if (!snapshots.layers[layerId]) {
+                let item = layerRepeater.itemAt(i);
+                if (item) {
+                    let dc = null;
+                    for (let j = 0; j < item.children.length; j++) {
+                        if (item.children[j].objectName === "dataCanvas") {
+                            dc = item.children[j];
+                            break;
+                        }
+                    }
+                    if (dc) {
+                        snapshots.layers[layerId] = dc.toDataURL("image/png");
+                    }
+                }
+            }
+        }
+        return snapshots;
     }
 
 
@@ -93,6 +130,14 @@ Rectangle {
 
     onCurrentScaleChanged: updateScaleIndicator()
 
+    Component.onCompleted: {
+        if (mapController && mapController.mapWidth > 0) {
+            canvasWidth = mapController.mapWidth;
+            canvasHeight = mapController.mapHeight;
+            mapReloadTicker++;
+        }
+    }
+
     Connections {
         target: mapController
         
@@ -105,45 +150,77 @@ Rectangle {
         function onMapLoaded() {
             let newRes = mapController.resolution;
             let newOrigin = mapController.origin;
+            let newWidth = mapController.mapWidth;
+            let newHeight = mapController.mapHeight;
             
             if (firstLoad) {
+                mapCanvasRoot.canvasWidth = newWidth;
+                mapCanvasRoot.canvasHeight = newHeight;
                 mapReloadTicker++;
                 fitMap();
                 oldRes = newRes;
                 oldOrigin = newOrigin;
-                oldHeight = mapController.mapHeight;
+                oldHeight = newHeight;
                 firstLoad = false;
             } else {
-                let newHeight = mapController.mapHeight;
+                // Check if size or origin actually changed
+                let sizeChanged = (newWidth !== mapCanvasRoot.canvasWidth || newHeight !== mapCanvasRoot.canvasHeight);
+                let originChanged = (newOrigin[0] !== oldOrigin[0] || newOrigin[1] !== oldOrigin[1]);
                 
-                // Reference point: the old origin in world coordinates
-                // Its old pixel position was (0, oldHeight)
-                let oldRefPxX = 0;
-                let oldRefPxY = oldHeight;
-                
-                // Its new pixel position:
-                let newRefPxX = (oldOrigin[0] - newOrigin[0]) / newRes;
-                let newRefPxY = newHeight - (oldOrigin[1] - newOrigin[1]) / newRes;
-                
-                // Adjust scale if resolution changed
-                let oldScale = currentScale;
-                if (oldRes > 0 && newRes !== oldRes) {
-                    currentScale = oldScale * (newRes / oldRes);
+                if (sizeChanged || originChanged) {
+                    // Capture snapshots before they are cleared by resize
+                    mapCanvasRoot.pendingSnapshots = mapCanvasRoot.captureCanvases();
+                    
+                    // Reference point: the old origin in world coordinates
+                    // Its old pixel position was (0, oldHeight)
+                    let oldRefPxX = 0;
+                    let oldRefPxY = oldHeight;
+                    
+                    // Its new pixel position:
+                    let newRefPxX = (oldOrigin[0] - newOrigin[0]) / newRes;
+                    let newRefPxY = newHeight - (oldOrigin[1] - newOrigin[1]) / newRes;
+                    
+                    // Calculate drawing offset
+                    // Old TL (0,0) world pos: [oldOrigin[0], oldOrigin[1] + oldHeight * oldRes]
+                    // New TL (0,0) world pos: [newOrigin[0], newOrigin[1] + newHeight * newRes]
+                    mapCanvasRoot.snapOffsetX = newRefPxX - oldRefPxX * (oldRes / newRes);
+                    mapCanvasRoot.snapOffsetY = newRefPxY - oldRefPxY * (oldRes / newRes);
+
+                    // Adjust scale if resolution changed
+                    let oldScale = currentScale;
+                    if (oldRes > 0 && newRes !== oldRes) {
+                        currentScale = oldScale * (newRes / oldRes);
+                    }
+                    
+                    // Adjust pan to keep the reference point at the same screen position
+                    viewport.panX = viewport.panX + (oldRefPxX * oldScale) - (newRefPxX * currentScale);
+                    viewport.panY = viewport.panY + (oldRefPxY * oldScale) - (newRefPxY * currentScale);
+                    
+                    // Apply Resize
+                    mapCanvasRoot.canvasWidth = newWidth;
+                    mapCanvasRoot.canvasHeight = newHeight;
+                    
+                    mapReloadTicker++;
+                    oldRes = newRes;
+                    oldOrigin = newOrigin;
+                    oldHeight = newHeight;
+                    
+                    // Trigger repaints for restoration
+                    editCanvas.requestPaint();
+                    for (let i = 0; i < layerRepeater.count; i++) {
+                        let item = layerRepeater.itemAt(i);
+                        if (item) {
+                            for (let j = 0; j < item.children.length; j++) {
+                                if (item.children[j].requestPaint) item.children[j].requestPaint();
+                            }
+                        }
+                    }
+                } else {
+                    // Just a content update, no resize
+                    mapReloadTicker++;
                 }
-                
-                // Adjust pan to keep the reference point at the same screen position
-                // ScreenPos = Pan + Px * Scale
-                // NewPan = OldPan + OldPx * OldScale - NewPx * NewScale
-                viewport.panX = viewport.panX + (oldRefPxX * oldScale) - (newRefPxX * currentScale);
-                viewport.panY = viewport.panY + (oldRefPxY * oldScale) - (newRefPxY * currentScale);
-                
-                mapReloadTicker++;
-                oldRes = newRes;
-                oldOrigin = newOrigin;
-                oldHeight = newHeight;
             }
             updateScaleIndicator();
-            editCanvas.requestPaint();
         }
     }
     
@@ -224,7 +301,7 @@ Rectangle {
                     visible: (mapController ? mapController.mapWidth : 0) > 0 && (mapController ? mapController.mapHeight : 0) > 0
                     
                     
-                    canvasSize: Qt.size((mapController ? mapController.mapWidth : 0), (mapController ? mapController.mapHeight : 0))
+                    canvasSize: Qt.size(mapCanvasRoot.canvasWidth, mapCanvasRoot.canvasHeight)
                     
                     renderTarget: Canvas.Image
                     antialiasing: false
@@ -234,6 +311,17 @@ Rectangle {
                     
                     onPaint: {
                         var ctx = getContext("2d");
+                        
+                        // 0. Handle Restoration from Snapshot
+                        if (mapCanvasRoot.pendingSnapshots && mapCanvasRoot.pendingSnapshots.edit) {
+                            let img = mapCanvasRoot.pendingSnapshots.edit;
+                            // Draw old content with offset
+                            ctx.drawImage(img, mapCanvasRoot.snapOffsetX, mapCanvasRoot.snapOffsetY);
+                            // Clear it so it doesn't redraw on every paint
+                            let snaps = mapCanvasRoot.pendingSnapshots;
+                            delete snaps.edit;
+                            mapCanvasRoot.pendingSnapshots = snaps;
+                        }
                         
                         // Process pending draws
                         for (var idx = 0; idx < pendingDraws.length; idx++) {
@@ -310,11 +398,11 @@ Rectangle {
                             }
                         }
 
-                        // Invisible Offscreen Canvas for pure grayscale values (for rendering out accurately)
                         Canvas {
                             id: dataCanvas
+                            objectName: "dataCanvas"
                             anchors.fill: parent
-                            canvasSize: Qt.size((mapController ? mapController.mapWidth : 0), (mapController ? mapController.mapHeight : 0))
+                            canvasSize: Qt.size(mapCanvasRoot.canvasWidth, mapCanvasRoot.canvasHeight)
                             
                             renderTarget: Canvas.Image
                             antialiasing: false
@@ -327,12 +415,21 @@ Rectangle {
                                     ctx.fillStyle = "rgba(0,0,0,0)";
                                     ctx.fillRect(0, 0, width, height);
                                     
-                                    if (layerLoader.status === Image.Ready) {
+                                    // 1. Check if we have a pending snapshot to restore
+                                    if (mapCanvasRoot.pendingSnapshots && mapCanvasRoot.pendingSnapshots.layers && mapCanvasRoot.pendingSnapshots.layers[model.layerId]) {
+                                        ctx.drawImage(mapCanvasRoot.pendingSnapshots.layers[model.layerId], mapCanvasRoot.snapOffsetX, mapCanvasRoot.snapOffsetY);
+                                        // Clear it so it doesn't redraw
+                                        let snaps = mapCanvasRoot.pendingSnapshots;
+                                        delete snaps.layers[model.layerId];
+                                        mapCanvasRoot.pendingSnapshots = snaps;
+                                    } 
+                                    // 2. Otherwise try to load from disk (initial load)
+                                    else if (layerLoader.status === Image.Ready) {
                                         ctx.globalCompositeOperation = "copy";
                                         ctx.drawImage(layerLoader, 0, 0);
                                         ctx.globalCompositeOperation = "source-over";
-                                        displayCanvas.requestPaint();
                                     }
+                                    displayCanvas.requestPaint();
                                 }
                             }
                         }
@@ -341,7 +438,7 @@ Rectangle {
                         Canvas {
                             id: displayCanvas
                             anchors.fill: parent
-                            canvasSize: Qt.size((mapController ? mapController.mapWidth : 0), (mapController ? mapController.mapHeight : 0))
+                            canvasSize: Qt.size(mapCanvasRoot.canvasWidth, mapCanvasRoot.canvasHeight)
                             
                             renderTarget: Canvas.Image
                             antialiasing: false

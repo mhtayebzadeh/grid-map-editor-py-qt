@@ -344,13 +344,21 @@ Rectangle {
                 Layout.fillWidth: true
                 Text { text: "Description"; color: "#d1d5db"; font.pixelSize: 12 }
                 Rectangle {
-                    Layout.fillWidth: true; height: 60; color: "#111827"; radius: 4; border.color: "#374151"
-                    TextEdit { 
-                        anchors.fill: parent; anchors.margins: 8; color: "white"; font.pixelSize: 13; 
-                        text: addGateDialog.gateDesc; 
-                        onTextChanged: addGateDialog.gateDesc = text
-                        wrapMode: Text.Wrap
-                        selectByMouse: true
+                    id: descriptionRect
+                    Layout.fillWidth: true; height: 60; color: "#111827"; radius: 4; border.color: "#374151"; clip: true
+                    ScrollView {
+                        anchors.fill: descriptionRect
+                        clip: true
+                        TextEdit { 
+                            width: descriptionRect.width - 12
+                            anchors.centerIn: descriptionRect
+                            padding: 8
+                            color: "white"; font.pixelSize: 13; 
+                            text: addGateDialog.gateDesc; 
+                            onTextChanged: addGateDialog.gateDesc = text
+                            wrapMode: Text.Wrap
+                            selectByMouse: true
+                        }
                     }
                 }
             }

@@ -186,7 +186,7 @@ class ROSManager(QObject):
             
             # Use sim time if specified (important for bags/simulators)
             node = Node('grid_map_editor_node', parameter_overrides=[
-                rclpy.parameter.Parameter('use_sim_time', rclpy.parameter.Type.BOOL, use_sim_time)
+                rclpy.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, use_sim_time)
             ]) 
             
             # Suppress warnings (like TF_OLD_DATA) to keep terminal clean
@@ -324,13 +324,16 @@ class ROSManager(QObject):
         msg.pose.pose.orientation = q
         
         # Covariance based on uncertainty (m)
-        # Indicies: 0=x, 7=y, 35=yaw
-        var_xy = self._init_uncertainty * self._init_uncertainty
+        # We treat the user-provided uncertainty as the 'radius' of high probability (2-sigma).
+        # So sigma = uncertainty / 2.0, and variance = sigma^2
+        var_xy = (self._init_uncertainty / 2.0) ** 2
+        
         msg.pose.covariance = [0.0] * 36
-        msg.pose.covariance[0] = var_xy
-        msg.pose.covariance[7] = var_xy
-        # Heading uncertainty 360 deg -> variance approx (2*pi)^2
-        # User suggested 1000 deg for high uncertainty
+        msg.pose.covariance[0] = var_xy  # x variance
+        msg.pose.covariance[7] = var_xy  # y variance
+        
+        # Orientation is unknown, so we set a very high variance for yaw (index 35)
+        # Using (1000 deg)^2 as a representation of "completely unknown"
         msg.pose.covariance[35] = (1000.0 * math.pi / 180.0) ** 2
         
         self.init_pose_pub.publish(msg)

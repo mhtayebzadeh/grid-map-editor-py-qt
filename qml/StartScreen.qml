@@ -38,12 +38,23 @@ Rectangle {
     Popup {
         id: rosConfigPopup
         anchors.centerIn: parent
-        width: 600
-        height: 320
+        width: 650
+        height: 480
         modal: true
         focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         
+        function resetSlamFields() {
+            slamMapTopicField.text = "/map"
+            slamScanTopicField.text = "/scan"
+            slamTfTopicField.text = "/tf"
+            slamRobotFrameField.text = "base_link"
+            slamMappingEnabledParamField.text = "/slam_toolbox/mapping_enabled"
+            slamInitPoseTopicField.text = "/initialpose"
+            slamUseSimTimeCheck.checked = false
+            slamInitUncertaintyField.text = "1.5"
+        }
+
         background: Rectangle { 
             color: "#1e2329" 
             radius: 8 
@@ -52,13 +63,34 @@ Rectangle {
             
             // Header for popup
             Rectangle {
-                width: parent.width; height: 40; color: "#252b32"; radius: 8
-                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 8; color: "#252b32" } // hide bottom radius
-                Text { anchors.centerIn: parent; text: "⚙️ ROS & TOPIC CONFIGURATION"; color: "white"; font.pixelSize: 14; font.bold: true }
+                id: popupHeader
+                width: parent.width; height: 50; color: "#252b32"; radius: 8
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 10; color: "#252b32" } // hide bottom radius
+                Text { 
+                    anchors.left: parent.left; 
+                    anchors.leftMargin: 20; 
+                    anchors.verticalCenter: parent.verticalCenter;
+                    text: "⚙️ ROS & TOPIC CONFIGURATION"; 
+                    color: "white"; font.pixelSize: 15; font.bold: true 
+                }
+
+                Rectangle {
+                    anchors.right: closeBtn.left
+                    anchors.rightMargin: 15
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 110; height: 26; color: "#374151"; radius: 4
+                    Text { anchors.centerIn: parent; text: "Reset to default"; color: "white"; font.pixelSize: 11; font.bold: true }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: rosConfigPopup.resetSlamFields()
+                    }
+                }
                 
                 Text {
+                    id: closeBtn
                     anchors.right: parent.right
-                    anchors.rightMargin: 12
+                    anchors.rightMargin: 16
                     anchors.verticalCenter: parent.verticalCenter
                     text: "✕"
                     color: "#9ca3af"
@@ -101,14 +133,16 @@ Rectangle {
 
         contentItem: ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 20
-            Layout.topMargin: 50
-            spacing: 20
+            anchors.margins: 0
+            spacing: 0
+
+            Item { Layout.preferredHeight: 60 } // Spacer for header
 
             GridLayout {
                 columns: 2
                 Layout.fillWidth: true
-                rowSpacing: 16
+                Layout.margins: 24
+                rowSpacing: 20
                 columnSpacing: 24
 
                 ColumnLayout {
@@ -190,7 +224,7 @@ Rectangle {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.columnSpan: 2
+                    Layout.columnSpan: 1
                     spacing: 4
                     Text { text: "Initial Pose Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
                     TextField {
@@ -202,16 +236,6 @@ Rectangle {
                         padding: 8
                         background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
                     }
-                }
-
-                CheckBox {
-                    id: slamUseSimTimeCheck
-                    Layout.columnSpan: 1
-                    text: "Use Simulation Time"
-                    font.pixelSize: 12
-                    font.bold: true
-                    palette.windowText: "white"
-                    checked: false
                 }
 
                 ColumnLayout {
@@ -229,6 +253,16 @@ Rectangle {
                         validator: DoubleValidator { bottom: 0.1; top: 10.0 }
                         background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
                     }
+                }
+
+                CheckBox {
+                    id: slamUseSimTimeCheck
+                    Layout.columnSpan: 2
+                    text: "Use Simulation Time"
+                    font.pixelSize: 12
+                    font.bold: true
+                    palette.windowText: "white"
+                    checked: false
                 }
             }
         }
@@ -614,7 +648,7 @@ Rectangle {
         onAccepted: {
             folderSettings.lastSlamFolder = currentFolder
             if(projectManager.createProject(slamProjNameField.text, currentFolder.toString(), "", "", "0.05", slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
-                root.startEditor(true, projectManager.projectName, projectManager.projectPath, "", "", "0.05", projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam, projectManager.tfTopic, projectManager.robotFrame)
+                root.startEditor(true, projectManager.projectName, projectManager.projectPath, "", "", "0.05", projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam, projectManager.tfTopic, projectManager.robotFrame, slamUseSimTimeCheck.checked)
             }
         }
     }
