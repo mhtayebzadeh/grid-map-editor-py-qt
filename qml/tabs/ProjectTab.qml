@@ -8,6 +8,8 @@ Item {
 
     property string projectName: ""
     property string projectPath: ""
+    property bool isSlamMode: false
+    property bool mappingActive: false
     property string mapTopic: ""
     property string scanTopic: ""
     property string mappingParam: ""
@@ -33,6 +35,103 @@ Item {
             ColumnLayout {
                 width: parent.width - 32
                 spacing: 12
+
+                // OPERATION MODE SECTION
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    
+                    Text { 
+                        text: "OPERATION MODE"
+                        color: "#9ca3af"
+                        font.pixelSize: 12
+                        font.bold: true
+                        font.letterSpacing: 1.2
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 40
+                        color: "#111827"
+                        radius: 6
+                        border.color: "#1f2937"
+                        
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 4
+                            spacing: 4
+                            
+                            // Mapping (SLAM) Tab
+                            Rectangle {
+                                id: mappingBtn
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                color: root.mappingActive ? "#2563eb" : "transparent"
+                                radius: 4
+                                opacity: root.isSlamMode ? 1.0 : 0.4
+                                
+                                RowLayout {
+                                    anchors.centerIn: parent
+                                    spacing: 8
+                                    Rectangle {
+                                        width: 8; height: 8; radius: 4
+                                        color: root.mappingActive ? "white" : "#4b5563"
+                                        visible: root.isSlamMode
+                                    }
+                                    Text {
+                                        text: "Mapping (SLAM)"
+                                        color: root.mappingActive ? "white" : "#9ca3af"
+                                        font.pixelSize: 13
+                                        font.bold: root.mappingActive
+                                    }
+                                }
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    enabled: root.isSlamMode
+                                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: root.mappingActive = true
+                                }
+                            }
+                            
+                            // Map Editing Tab
+                            Rectangle {
+                                id: editingBtn
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                color: !root.mappingActive ? "#2563eb" : "transparent"
+                                radius: 4
+                                
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Map Editing"
+                                    color: !root.mappingActive ? "white" : "#9ca3af"
+                                    font.pixelSize: 13
+                                    font.bold: !root.mappingActive
+                                }
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.mappingActive = false
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: !root.isSlamMode ? "SLAM is disabled because you are editing an existing map." : 
+                              root.mappingActive ? "Live mapping is active. Safety lock prevents editing." :
+                              "Mapping is paused. You can now edit the map layers."
+                        color: "#9ca3af"
+                        font.pixelSize: 11
+                        font.italic: true
+                        wrapMode: Text.Wrap
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: "#1f2937"; Layout.topMargin: 4; Layout.bottomMargin: 4 }
 
                 Text { text: "PROJECT INFO"; color: "#9ca3af"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.2 }
 

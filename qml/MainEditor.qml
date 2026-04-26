@@ -40,7 +40,8 @@ Rectangle {
     property bool showRobot: true
     property bool showLaserScan: true
     property bool safetyLockEnabled: true
-    property bool editingDisabled: safetyLockEnabled && isSlamMode
+    property bool mappingActive: isSlamMode
+    property bool editingDisabled: safetyLockEnabled && mappingActive
 
     
     // Map Edit State
@@ -121,7 +122,7 @@ Rectangle {
     ListModel {
         id: layersModel
         Component.onCompleted: {
-            mapController.isSlamMode = root.isSlamMode;
+            mapController.isSlamMode = root.mappingActive;
             
             if (!root.isSlamMode && projectManager.isLoaded) {
                 let layers = projectManager.getLayers();
@@ -235,6 +236,11 @@ Rectangle {
             modelToList(homeGatesModel),
             modelToList(chargeStationsModel)
         );
+    }
+
+    onMappingActiveChanged: {
+        mapController.isSlamMode = mappingActive;
+        statusPanel.addLog("Operation Mode changed: " + (mappingActive ? "Mapping (SLAM)" : "Map Editing"), "info");
     }
 
     SplitView {
