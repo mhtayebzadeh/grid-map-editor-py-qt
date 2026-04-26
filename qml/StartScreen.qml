@@ -69,6 +69,29 @@ Rectangle {
             }
         }
 
+        onClosed: {
+            // Sync with projectManager if it exists
+            if (projectManager) {
+                projectManager.mapTopic = slamMapTopicField.text
+                projectManager.scanTopic = slamScanTopicField.text
+                projectManager.tfTopic = slamTfTopicField.text
+                projectManager.robotFrame = slamRobotFrameField.text
+                projectManager.mappingEnabledParam = slamMappingEnabledParamField.text
+                
+                // Update global settings for persistence
+                if (window.slamSettings) {
+                    window.slamSettings.mapTopic = slamMapTopicField.text
+                    window.slamSettings.scanTopic = slamScanTopicField.text
+                    window.slamSettings.tfTopic = slamTfTopicField.text
+                    window.slamSettings.robotFrame = slamRobotFrameField.text
+                    window.slamSettings.mappingEnabledParam = slamMappingEnabledParamField.text
+                }
+                
+                // Restart ROS to check topic availability on first page
+                robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame)
+            }
+        }
+
         contentItem: ColumnLayout {
             anchors.fill: parent
             anchors.margins: 20

@@ -23,6 +23,7 @@ class ROSManager(QObject):
     scanChanged = Signal()
     mapReceived = Signal(object) # Emit the OccupancyGrid message or processed data
     statusChanged = Signal()
+    logMessage = Signal(str, str) # message, type
 
     def __init__(self):
         super().__init__()
@@ -39,6 +40,12 @@ class ROSManager(QObject):
         self.node = None
         self.thread = None
         self.active = False
+        
+        # Activity Tracking
+        import time
+        self._last_map_time = 0
+        self._last_scan_time = 0
+        self._last_tf_time = 0
         
         # Sim Timer (Higher frequency for smooth movement)
         self.sim_timer = QTimer()
@@ -73,6 +80,21 @@ class ROSManager(QObject):
 
     @Property(float, notify=scanChanged)
     def scanAngleIncrement(self): return self._scan_angle_increment
+
+    @Property(bool, notify=statusChanged)
+    def isMapActive(self):
+        import time
+        return (time.time() - self._last_map_time) < 5.0 if self.active else False
+
+    @Property(bool, notify=statusChanged)
+    def isScanActive(self):
+        import time
+        return (time.time() - self._last_scan_time) < 2.0 if self.active else False
+
+    @Property(bool, notify=statusChanged)
+    def isTfActive(self):
+        import time
+        return (time.time() - self._last_tf_time) < 2.0 if self.active else False
 
     def _update_sim(self):
         # Only run smooth sim if not in test mode and not connected to ROS
@@ -131,6 +153,7 @@ class ROSManager(QObject):
             self.stop_ros()
 
         print(f"Starting ROS2 connection. Scan: {scan_topic}, Map: {map_topic}, Robot Frame: {robot_frame}")
+        self.logMessage.emit(f"Connecting to ROS topics... Scan: {scan_topic}", "info")
         self.active = True
         self.thread = threading.Thread(target=self._ros_thread, args=(scan_topic, map_topic, tf_topic, robot_frame), daemon=True)
         self.thread.start()
@@ -176,10 +199,13 @@ class ROSManager(QObject):
                         self._x = t.transform.translation.x
                         self._y = t.transform.translation.y
                         self._theta = self._quat_to_yaw(t.transform.rotation)
+                        self._last_tf_time = now
                         self.poseChanged.emit()
                     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                         pass # Frame not available yet
                     last_tf_update = now
+                    # Periodically emit statusChanged to update activity indicators in UI
+                    self.statusChanged.emit()
         except Exception as e:
             print(f"ROS2 Thread Error: {e}")
         finally:
@@ -197,6 +223,8 @@ class ROSManager(QObject):
 
 
     def _scan_callback(self, msg):
+        import time
+        self._last_scan_time = time.time()
         self._use_simulation = False
         # Normalize to 360 points if possible, or just use as is
         # ROS LaserScan often has many more points (e.g. 720 or 1080)
@@ -208,6 +236,8 @@ class ROSManager(QObject):
         self.scanChanged.emit()
 
     def _map_callback(self, msg):
+        import time
+        self._last_map_time = time.time()
         self._use_simulation = False
         # We pass the message object to be processed by MapController
         self.mapReceived.emit(msg)

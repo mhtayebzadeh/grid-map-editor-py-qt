@@ -7,6 +7,15 @@ from PySide6.QtQml import QQmlApplicationEngine
 from controllers.map_provider import MapImageProvider, MapController
 from controllers.ros_manager import ROSManager
 from controllers.project_manager import ProjectManager
+from PySide6.QtCore import QObject, Slot
+
+class ClipboardHelper(QObject):
+    def __init__(self):
+        super().__init__()
+
+    @Slot(str)
+    def copyText(self, text):
+        QGuiApplication.clipboard().setText(text)
 
 if __name__ == "__main__":
 
@@ -30,11 +39,13 @@ if __name__ == "__main__":
     project_manager = ProjectManager()
     map_controller = MapController(map_image_provider, project_manager)
     robot_handler = ROSManager()
+    clipboard_helper = ClipboardHelper()
     
     context = engine.rootContext()
     context.setContextProperty("projectManager", project_manager)
     context.setContextProperty("mapController", map_controller)
     context.setContextProperty("robotHandler", robot_handler)
+    context.setContextProperty("clipboardHelper", clipboard_helper)
     
     # 3. Connect Signals
     robot_handler.mapReceived.connect(map_controller.handleRosMap)

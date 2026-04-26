@@ -282,7 +282,7 @@ Rectangle {
         running: sidePanel.autoSaveEnabled
         repeat: true
         onTriggered: {
-            console.log("Auto-saving project...")
+            statusPanel.addLog("Auto-saving project...", "info")
             root.saveProject()
         }
     }

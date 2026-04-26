@@ -58,6 +58,7 @@ class MapController(QObject):
     mapLoaded = Signal()
     resolutionChanged = Signal()
     originChanged = Signal()
+    logMessage = Signal(str, str) # message, type
     
     def __init__(self, provider: MapImageProvider, project_manager, parent=None):
         super().__init__(parent)
@@ -322,11 +323,11 @@ class MapController(QObject):
                 with open(mepro_path, 'w') as f:
                     json.dump(mepro_data, f, indent=4)
                 print(f"Updated mepro file at {mepro_path}")
+            self.logMessage.emit("Project map layers merged and saved.", "success")
                     
         except Exception as e:
             print(f"Error saving merged map: {e}")
-
-
+            self.logMessage.emit(f"Error saving map: {e}", "error")
 
     @Slot('QVariantList')
     def saveProjectFull(self, layersArray):
@@ -408,3 +409,4 @@ class MapController(QObject):
             
         # Tell project manager to update mepro with layers and timestamps
         self._project_manager.updateMeproLayers(saved_layers_meta)
+        self.logMessage.emit("Project saved successfully.", "success")

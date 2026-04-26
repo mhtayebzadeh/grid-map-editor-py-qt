@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtCore
+import "./components"
 
 ApplicationWindow {
     id: window
@@ -9,6 +11,16 @@ ApplicationWindow {
     height: 768
     title: qsTr("Occupancy Grid Map Editor")
     color: "#1a1e24"
+
+    Settings {
+        id: slamSettings
+        category: "SlamTopics"
+        property string mapTopic: "/map"
+        property string scanTopic: "/scan"
+        property string mappingEnabledParam: "/slam_toolbox/mapping_enabled"
+        property string tfTopic: "/tf"
+        property string robotFrame: "base_link"
+    }
 
     StackView {
         id: stackView
@@ -33,5 +45,96 @@ ApplicationWindow {
                 })
             }
         }
+    }
+
+    // Toggle Button (Floating at bottom)
+    Rectangle {
+        id: logToggleButton
+        width: 40; height: 40
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.margins: 15
+        color: statusPanel.isOpen ? "#3b82f6" : "#374151"
+        radius: 4
+        z: 999 // Below panel but above stackView
+        
+        Text {
+            anchors.centerIn: parent
+            text: "📋"
+            font.pixelSize: 20
+            color: "white"
+        }
+        
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: statusPanel.isOpen = !statusPanel.isOpen
+        }
+        
+        ToolTip.visible: hovered
+        ToolTip.text: "Show Logs & Status"
+    }
+
+    StatusPanel {
+        id: statusPanel
+        isOpen: false
+    }
+
+    // Logic to update topics in the status panel
+    function refreshTopics() {
+        if (!projectManager) return;
+        
+        let topics = [];
+        // Map Topic
+        let mapTopic = projectManager.mapTopic || "/map";
+        topics.push({ name: "Map", topic: mapTopic, isActive: robotHandler.isMapActive });
+        
+        // Scan Topic
+        let scanTopic = projectManager.scanTopic || "/scan";
+        topics.push({ name: "Laser Scan", topic: scanTopic, isActive: robotHandler.isScanActive });
+        
+        // TF Topic
+        let tfTopic = projectManager.tfTopic || "/tf";
+        topics.push({ name: "TF", topic: tfTopic, isActive: robotHandler.isTfActive });
+        
+        statusPanel.updateTopics(topics);
+    }
+
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: refreshTopics()
+    }
+    
+    Connections {
+        target: robotHandler
+        function onStatusChanged() {
+            refreshTopics()
+        }
+        function onLogMessage(msg, type) {
+            statusPanel.addLog(msg, type)
+        }
+    }
+    
+    Connections {
+        target: mapController
+        function onLogMessage(msg, type) {
+            statusPanel.addLog(msg, type)
+        }
+    }
+
+    Component.onCompleted: {
+        // Sync persisted settings to projectManager immediately
+        projectManager.mapTopic = slamSettings.mapTopic
+        projectManager.scanTopic = slamSettings.scanTopic
+        projectManager.tfTopic = slamSettings.tfTopic
+        projectManager.robotFrame = slamSettings.robotFrame
+        projectManager.mappingEnabledParam = slamSettings.mappingEnabledParam
+        
+        refreshTopics()
+        
+        // Start ROS with these settings
+        robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame)
     }
 }
