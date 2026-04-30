@@ -31,6 +31,7 @@ from PySide6.QtCore import QObject, Signal, Slot, Property
 try:
     import rclpy
     from rclpy.node import Node
+    from rclpy.executors import SingleThreadedExecutor
     from rclpy.callback_groups import ReentrantCallbackGroup
     from lifecycle_msgs.srv import ChangeState, GetState
     from lifecycle_msgs.msg import Transition
@@ -39,6 +40,7 @@ except ImportError:
     HAS_ROS2 = False
     rclpy = None
     Node = None
+    SingleThreadedExecutor = None
     ChangeState = None
     GetState = None
     Transition = None
@@ -113,6 +115,9 @@ class SlamModeHandler(QObject):
         self._serialize_client = None
         self._lock = threading.Lock()
 
+        # Sync initial state in background so we don't block GUI
+        threading.Thread(target=self._sync_initial_state, daemon=True).start()
+
     # ── Qt Properties ───────────────────────────────────────────
 
     @Property(str, notify=modeChanged)
@@ -168,6 +173,37 @@ class SlamModeHandler(QObject):
             self._node = None
 
     # ── Internal ────────────────────────────────────────────────
+
+    def _sync_initial_state(self):
+        """Query ROS lifecycle nodes in the background to sync initial GUI state."""
+        try:
+            self._ensure_node()
+            map_state = self._get_lifecycle_state(self._mapping_node, timeout_sec=2.0)
+            if map_state in ["unconfigured", "inactive"] or map_state is None:
+                loc_state = self._get_lifecycle_state(self._localization_node, timeout_sec=2.0)
+                if loc_state == "active":
+                    self._current_mode = SlamMode.LOCALIZATION
+                    self.modeChanged.emit(self._current_mode.value)
+        except Exception as e:
+            print(f"[SlamModeHandler] Could not sync initial state: {e}")
+
+    def _get_lifecycle_state(self, node_name: str, timeout_sec: float = 2.0) -> Optional[str]:
+        """Fetch current state of a lifecycle node."""
+        service_name = f"{node_name}/get_state"
+        client = self._node.create_client(GetState, service_name)
+        if not client.wait_for_service(timeout_sec=timeout_sec):
+            self._node.destroy_client(client)
+            return None
+            
+        request = GetState.Request()
+        future = client.call_async(request)
+        self._spin_until_future_complete(future, timeout_sec=timeout_sec)
+        
+        self._node.destroy_client(client)
+        result = future.result()
+        if result is not None:
+            return result.current_state.label
+        return None
 
     def _ensure_node(self):
         """Create or reuse a lightweight ROS 2 node for service calls."""
@@ -233,11 +269,33 @@ class SlamModeHandler(QObject):
 
     # ── Lifecycle service call ──────────────────────────────────
 
+    def _spin_until_future_complete(self, future, timeout_sec: float):
+        """Safely spin until future complete without using global executor."""
+        executor = SingleThreadedExecutor()
+        executor.add_node(self._node)
+        try:
+            executor.spin_until_future_complete(future, timeout_sec=timeout_sec)
+        finally:
+            executor.remove_node(self._node)
+
     def _lifecycle_transition(self, node_name: str, transition_label: str, timeout_sec: float = 10.0):
         """
         Call /<node_name>/change_state with the requested transition.
         Blocks until the response arrives or *timeout_sec* expires.
         """
+        current_state = self._get_lifecycle_state(node_name, timeout_sec=2.0)
+        
+        # Skip redundant transitions to prevent Lifecycle errors
+        if current_state == "unconfigured" and transition_label in ["deactivate", "cleanup", "shutdown"]:
+            self.statusMessage.emit(f"  ✓ {node_name} already unconfigured, skipping {transition_label}", "info")
+            return
+        elif current_state == "inactive" and transition_label == "deactivate":
+            self.statusMessage.emit(f"  ✓ {node_name} already inactive, skipping {transition_label}", "info")
+            return
+        elif current_state == "active" and transition_label in ["configure", "activate"]:
+            self.statusMessage.emit(f"  ✓ {node_name} already active, skipping {transition_label}", "info")
+            return
+
         service_name = f"{node_name}/change_state"
         
         # Cache and reuse clients to avoid wait set corruption
@@ -259,7 +317,7 @@ class SlamModeHandler(QObject):
         request.transition.id = _TRANSITION[transition_label]
 
         future = client.call_async(request)
-        rclpy.spin_until_future_complete(self._node, future, timeout_sec=timeout_sec)
+        self._spin_until_future_complete(future, timeout_sec=timeout_sec)
 
         if future.result() is None:
             raise RuntimeError(
@@ -338,7 +396,7 @@ class SlamModeHandler(QObject):
         request.filename = self._default_map_path
 
         future = active_client.call_async(request)
-        rclpy.spin_until_future_complete(self._node, future, timeout_sec=timeout_sec)
+        self._spin_until_future_complete(future, timeout_sec=timeout_sec)
 
         if future.result() is None:
             raise RuntimeError("SerializePoseGraph call timed out")
