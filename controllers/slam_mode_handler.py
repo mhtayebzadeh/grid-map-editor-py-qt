@@ -318,10 +318,12 @@ class SlamModeHandler(QObject):
             "ros2", "run", "nav2_map_server", "map_server",
             "--ros-args", 
             "-p", f"yaml_filename:={yaml_file}",
+            "-p", "use_lifecycle_mgr:=false",
             "-r", "__node:=map_server_local_gui"
         ]
         self.statusMessage.emit(f"Spawning local map server for {yaml_file}", "info")
-        self._map_server_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Removing DEVNULL so that any internal C++ crashes are printed exactly in the user's terminal
+        self._map_server_process = subprocess.Popen(cmd)
         
         # Give the OS a moment to load the C++ node payload
         time.sleep(1.0)
