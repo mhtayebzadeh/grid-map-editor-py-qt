@@ -85,6 +85,7 @@ class SlamModeHandler(QObject):
     statusMessage = Signal(str, str)   # message, level ("info"/"warning"/"error"/"success")
     switchStarted = Signal()
     switchFinished = Signal(bool)
+    switchingChanged = Signal()
 
     # ── Node names matching wheelchair_navigation slam_launch.py ─
     MAPPING_NODE = "/slam_toolbox_mapping"
@@ -124,7 +125,7 @@ class SlamModeHandler(QObject):
     def currentMode(self) -> str:
         return self._current_mode.value
 
-    @Property(bool, notify=switchStarted)
+    @Property(bool, notify=switchingChanged)
     def isSwitching(self) -> bool:
         return self._switching
 
@@ -151,6 +152,7 @@ class SlamModeHandler(QObject):
             return
 
         self._switching = True
+        self.switchingChanged.emit()
         self.switchStarted.emit()
         threading.Thread(
             target=self._do_switch, args=(target,), daemon=True
@@ -178,12 +180,14 @@ class SlamModeHandler(QObject):
         """Query ROS lifecycle nodes in the background to sync initial GUI state."""
         try:
             self._ensure_node()
-            map_state = self._get_lifecycle_state(self._mapping_node, timeout_sec=2.0)
-            if map_state in ["unconfigured", "inactive"] or map_state is None:
-                loc_state = self._get_lifecycle_state(self._localization_node, timeout_sec=2.0)
-                if loc_state == "active":
-                    self._current_mode = SlamMode.LOCALIZATION
-                    self.modeChanged.emit(self._current_mode.value)
+            map_state = self._get_lifecycle_state(self._mapping_node, timeout_sec=5.0)
+            loc_state = self._get_lifecycle_state(self._localization_node, timeout_sec=5.0)
+            
+            if map_state is None and loc_state is None:
+                self.statusMessage.emit("Warning: Could not sync with ROS nodes. They may be hanging.", "warning")
+            elif loc_state == "active":
+                self._current_mode = SlamMode.LOCALIZATION
+                self.modeChanged.emit(self._current_mode.value)
         except Exception as e:
             print(f"[SlamModeHandler] Could not sync initial state: {e}")
 
@@ -239,6 +243,7 @@ class SlamModeHandler(QObject):
             self.switchFinished.emit(False)
         finally:
             self._switching = False
+            self.switchingChanged.emit()
 
     # ── Transition sequences ────────────────────────────────────
 
@@ -283,8 +288,11 @@ class SlamModeHandler(QObject):
         Call /<node_name>/change_state with the requested transition.
         Blocks until the response arrives or *timeout_sec* expires.
         """
-        current_state = self._get_lifecycle_state(node_name, timeout_sec=2.0)
+        current_state = self._get_lifecycle_state(node_name, timeout_sec=5.0)
         
+        if current_state is None:
+            raise RuntimeError(f"Unable to query state for {node_name}. The node might be hanging due to time jumps.")
+
         # Skip redundant transitions to prevent Lifecycle errors
         if current_state == "unconfigured" and transition_label in ["deactivate", "cleanup", "shutdown"]:
             self.statusMessage.emit(f"  ✓ {node_name} already unconfigured, skipping {transition_label}", "info")
