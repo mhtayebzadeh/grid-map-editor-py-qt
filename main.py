@@ -40,7 +40,7 @@ if __name__ == "__main__":
     project_manager = ProjectManager()
     map_controller = MapController(map_image_provider, project_manager)
     robot_handler = ROSManager()
-    slam_mode_handler = SlamModeHandler()
+    slam_mode_handler = SlamModeHandler(project_manager=project_manager)
     clipboard_helper = ClipboardHelper()
     
     context = engine.rootContext()

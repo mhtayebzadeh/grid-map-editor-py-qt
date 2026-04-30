@@ -23,6 +23,7 @@ Integration:
 import threading
 import traceback
 import time
+import subprocess
 from enum import Enum
 from typing import Optional
 
@@ -97,6 +98,7 @@ class SlamModeHandler(QObject):
 
     def __init__(
         self,
+        project_manager=None,
         mapping_node: str = MAPPING_NODE,
         localization_node: str = LOCALIZATION_NODE,
         serialize_service: str = SERIALIZE_SERVICE,
@@ -104,6 +106,7 @@ class SlamModeHandler(QObject):
         parent=None,
     ):
         super().__init__(parent)
+        self._project_manager = project_manager
         self._mapping_node = mapping_node
         self._localization_node = localization_node
         self._serialize_service = serialize_service
@@ -114,6 +117,8 @@ class SlamModeHandler(QObject):
         self._node: Optional[Node] = None
         self._lifecycle_clients = {}
         self._serialize_client = None
+        self._map_server_process = None
+        self._yaml_path = None
         self._lock = threading.Lock()
 
         # Sync initial state in background so we don't block GUI
@@ -164,9 +169,16 @@ class SlamModeHandler(QObject):
         self._default_map_path = path
         self.statusMessage.emit(f"Map save path set to: {path}", "info")
 
+    @Slot(str)
+    def setYamlPath(self, path: str):
+        """Override the yaml file path used when serving the map locally."""
+        self._yaml_path = path
+        self.statusMessage.emit(f"Map YAML path set to: {path}", "info")
+
     @Slot()
     def shutdown(self):
-        """Destroy the internal ROS node (call on app exit)."""
+        """Destroy the internal ROS node and processes (call on app exit)."""
+        self._stop_local_map_server()
         if self._node is not None:
             try:
                 self._node.destroy_node()
@@ -256,13 +268,15 @@ class SlamModeHandler(QObject):
         self._lifecycle_transition(self._mapping_node, "deactivate")
         self._lifecycle_transition(self._mapping_node, "cleanup")
 
-        self.statusMessage.emit("Activating localization node…", "info")
+        self.statusMessage.emit("Activating localization node & local map server…", "info")
+        self._start_local_map_server()
         self._lifecycle_transition(self._localization_node, "configure")
         self._lifecycle_transition(self._localization_node, "activate")
 
     def _switch_to_mapping(self):
         """Localization → Mapping."""
-        self.statusMessage.emit("Deactivating localization node…", "info")
+        self.statusMessage.emit("Deactivating localization node & local map server…", "info")
+        self._stop_local_map_server()
         self._lifecycle_transition(self._localization_node, "deactivate")
         self._lifecycle_transition(self._localization_node, "cleanup")
 
@@ -272,14 +286,72 @@ class SlamModeHandler(QObject):
         self._lifecycle_transition(self._mapping_node, "configure")
         self._lifecycle_transition(self._mapping_node, "activate")
 
+    # ── Local Map Server Management ─────────────────────────────
+
+    def _start_local_map_server(self):
+        if self._map_server_process is not None:
+            self._stop_local_map_server()
+            
+        import os
+        yaml_file = None
+        
+        # 1. Automagically extract project path from the project manager
+        if self._project_manager and hasattr(self._project_manager, 'projectPath'):
+            project_dir = getattr(self._project_manager, 'projectPath')
+            if project_dir and os.path.exists(project_dir):
+                merged_yaml = os.path.join(project_dir, "merged_map.yaml")
+                if os.path.exists(merged_yaml):
+                    yaml_file = merged_yaml
+                else:
+                    original_yaml = os.path.join(project_dir, "original_map.yaml")
+                    if os.path.exists(original_yaml):
+                        yaml_file = original_yaml
+        
+        # 2. Fallbacks
+        if not yaml_file:
+            yaml_file = self._yaml_path if self._yaml_path else f"{self._default_map_path}.yaml"
+
+        if not os.path.exists(yaml_file):
+            raise RuntimeError(f"Map YAML file not found locally: {yaml_file}")
+
+        cmd = [
+            "ros2", "run", "nav2_map_server", "map_server",
+            "--ros-args", 
+            "-p", f"yaml_filename:={yaml_file}",
+            "-r", "__node:=map_server_local_gui"
+        ]
+        self.statusMessage.emit(f"Spawning local map server for {yaml_file}", "info")
+        self._map_server_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Give the OS a moment to load the C++ node payload
+        time.sleep(1.0)
+        if self._map_server_process.poll() is not None:
+            raise RuntimeError("map_server local subprocess crashed instantly upon launch.")
+        
+        # Configure and activate the newly spawned lifecycle node
+        self._lifecycle_transition("map_server_local_gui", "configure", timeout_sec=15.0)
+        self._lifecycle_transition("map_server_local_gui", "activate", timeout_sec=5.0)
+
+    def _stop_local_map_server(self):
+        if self._map_server_process is not None:
+            self._map_server_process.terminate()
+            try:
+                self._map_server_process.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                self._map_server_process.kill()
+            self._map_server_process = None
+
     # ── Lifecycle service call ──────────────────────────────────
 
     def _spin_until_future_complete(self, future, timeout_sec: float):
-        """Safely spin until future complete without using global executor."""
+        """Safely spin until future complete while yielding the Python GIL to prevent Qt GUI freezes."""
         executor = SingleThreadedExecutor()
         executor.add_node(self._node)
         try:
-            executor.spin_until_future_complete(future, timeout_sec=timeout_sec)
+            start_time = time.time()
+            while rclpy.ok() and not future.done() and (time.time() - start_time) < timeout_sec:
+                executor.spin_once(timeout_sec=0.01)
+                time.sleep(0.01)  # VITAL: Releases GIL back to QML GUI thread
         finally:
             executor.remove_node(self._node)
 
@@ -288,7 +360,7 @@ class SlamModeHandler(QObject):
         Call /<node_name>/change_state with the requested transition.
         Blocks until the response arrives or *timeout_sec* expires.
         """
-        current_state = self._get_lifecycle_state(node_name, timeout_sec=5.0)
+        current_state = self._get_lifecycle_state(node_name, timeout_sec=timeout_sec)
         
         if current_state is None:
             raise RuntimeError(f"Unable to query state for {node_name}. The node might be hanging due to time jumps.")
