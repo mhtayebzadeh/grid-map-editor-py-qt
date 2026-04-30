@@ -83,6 +83,7 @@ Rectangle {
                 id: projectTab
                 projectName: root.projectName
                 projectPath: root.projectPath
+                isSlamMode: root.isSlamMode
                 mapTopic: root.mapTopic
                 scanTopic: root.scanTopic
                 tfTopic: root.tfTopic

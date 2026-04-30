@@ -13,6 +13,7 @@ Item {
     property string mappingParam: ""
     property string tfTopic: ""
     property string robotFrame: ""
+    property bool isSlamMode: false
     property bool autoSave: autoSaveCb.checked
     property alias showRobot: showRobotCb.checked
     property alias showLaserScan: showLaserScanCb.checked
@@ -176,6 +177,174 @@ Item {
                                 onEditingFinished: projectManager.mappingEnabledParam = text
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
                             }
+                        }
+                    }
+
+                    // ── SLAM Mode Toggle Switch ────────────────────────
+                    // Only visible when the editor was launched in SLAM mode.
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        visible: root.isSlamMode
+
+                        Rectangle { Layout.fillWidth: true; height: 1; color: "#1f2937"; Layout.topMargin: 4; Layout.bottomMargin: 2 }
+
+                        Text {
+                            text: "SLAM MODE"
+                            color: "#9ca3af"
+                            font.pixelSize: 11
+                            font.bold: true
+                            font.letterSpacing: 1.2
+                        }
+
+                        // Toggle card
+                        Rectangle {
+                            id: slamToggleCard
+                            Layout.fillWidth: true
+                            height: 72
+                            radius: 8
+                            color: "#111827"
+                            border.color: slamModeHandler.currentMode === "mapping" ? "#2563eb" : "#7c3aed"
+                            border.width: 1
+
+                            property bool isMapping: slamModeHandler.currentMode === "mapping"
+
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                spacing: 6
+
+                                // Top row: label + status badge
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    Text {
+                                        text: slamToggleCard.isMapping ? "🗺️" : "📍"
+                                        font.pixelSize: 14
+                                    }
+                                    Text {
+                                        text: slamToggleCard.isMapping ? "Mapping Mode" : "Localization Mode"
+                                        color: "#e4e4e7"
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                        Layout.fillWidth: true
+                                    }
+
+                                    // Busy indicator
+                                    Rectangle {
+                                        width: 18; height: 18
+                                        radius: 9
+                                        color: "transparent"
+                                        visible: slamModeHandler.isSwitching
+
+                                        Rectangle {
+                                            id: spinner
+                                            width: 14; height: 14
+                                            anchors.centerIn: parent
+                                            radius: 7
+                                            color: "transparent"
+                                            border.width: 2
+                                            border.color: "#6b7280"
+
+                                            Rectangle {
+                                                width: 6; height: 6
+                                                radius: 3
+                                                color: "#3b82f6"
+                                                anchors.top: parent.top
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                            }
+
+                                            RotationAnimator {
+                                                target: spinner
+                                                from: 0; to: 360
+                                                duration: 1000
+                                                loops: Animation.Infinite
+                                                running: slamModeHandler.isSwitching
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Pill toggle
+                                Rectangle {
+                                    id: toggleTrack
+                                    Layout.fillWidth: true
+                                    height: 28
+                                    radius: 14
+                                    color: slamToggleCard.isMapping ? "#1e3a5f" : "#3b1f6e"
+
+                                    Behavior on color { ColorAnimation { duration: 300 } }
+
+                                    // Knob
+                                    Rectangle {
+                                        id: toggleKnob
+                                        width: (parent.width / 2) - 4
+                                        height: 22
+                                        y: 3
+                                        x: slamToggleCard.isMapping ? 3 : parent.width - width - 3
+                                        radius: 11
+                                        color: slamToggleCard.isMapping ? "#2563eb" : "#7c3aed"
+
+                                        Behavior on x { NumberAnimation { duration: 300; easing.type: Easing.InOutCubic } }
+                                        Behavior on color { ColorAnimation { duration: 300 } }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: slamToggleCard.isMapping ? "Mapping" : "Localization"
+                                            color: "white"
+                                            font.pixelSize: 11
+                                            font.bold: true
+                                        }
+                                    }
+
+                                    // Labels on the track
+                                    Text {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 12
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "MAP"
+                                        color: slamToggleCard.isMapping ? "transparent" : "#6b7280"
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                    }
+                                    Text {
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 12
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "LOC"
+                                        color: slamToggleCard.isMapping ? "#6b7280" : "transparent"
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: slamModeHandler.isSwitching ? Qt.WaitCursor : Qt.PointingHandCursor
+                                        enabled: !slamModeHandler.isSwitching
+                                        onClicked: {
+                                            let nextMode = slamToggleCard.isMapping ? "localization" : "mapping"
+                                            slamModeHandler.requestSwitch(nextMode)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Status text
+                        Text {
+                            text: slamModeHandler.isSwitching
+                                  ? "Switching mode…"
+                                  : (slamToggleCard.isMapping
+                                     ? "Building map — click to switch to localization"
+                                     : "Localizing on saved map — click to resume mapping")
+                            color: "#6b7280"
+                            font.pixelSize: 10
+                            font.italic: true
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
                         }
                     }
                 }

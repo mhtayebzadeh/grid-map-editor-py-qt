@@ -130,6 +130,16 @@ ApplicationWindow {
         }
     }
 
+    Connections {
+        target: slamModeHandler
+        function onStatusMessage(msg, level) {
+            statusPanel.addLog(msg, level)
+        }
+        function onModeChanged(mode) {
+            statusPanel.addLog("SLAM mode: " + mode, "success")
+        }
+    }
+
     Component.onCompleted: {
         // Sync persisted settings to projectManager immediately
         projectManager.mapTopic = slamSettings.mapTopic

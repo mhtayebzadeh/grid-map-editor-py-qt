@@ -6,6 +6,7 @@ from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from controllers.map_provider import MapImageProvider, MapController
 from controllers.ros_manager import ROSManager
+from controllers.slam_mode_handler import SlamModeHandler
 from controllers.project_manager import ProjectManager
 from PySide6.QtCore import QObject, Slot
 
@@ -39,12 +40,14 @@ if __name__ == "__main__":
     project_manager = ProjectManager()
     map_controller = MapController(map_image_provider, project_manager)
     robot_handler = ROSManager()
+    slam_mode_handler = SlamModeHandler()
     clipboard_helper = ClipboardHelper()
     
     context = engine.rootContext()
     context.setContextProperty("projectManager", project_manager)
     context.setContextProperty("mapController", map_controller)
     context.setContextProperty("robotHandler", robot_handler)
+    context.setContextProperty("slamModeHandler", slam_mode_handler)
     context.setContextProperty("clipboardHelper", clipboard_helper)
     
     # 3. Connect Signals
@@ -59,5 +62,6 @@ if __name__ == "__main__":
         
     # Cleanup on exit
     app.aboutToQuit.connect(robot_handler.stop_ros)
+    app.aboutToQuit.connect(slam_mode_handler.shutdown)
     
     sys.exit(app.exec())
