@@ -10,9 +10,12 @@ Item {
     property string projectPath: ""
     property string mapTopic: ""
     property string scanTopic: ""
-    property string mappingParam: ""
     property string tfTopic: ""
     property string robotFrame: ""
+    property string resetMapServiceName: ""
+    property string resetMapServiceType: ""
+    property string pauseMappingServiceName: ""
+    property string pauseMappingServiceType: ""
     property bool autoSave: autoSaveCb.checked
     property alias showRobot: showRobotCb.checked
     property alias showLaserScan: showLaserScanCb.checked
@@ -166,14 +169,62 @@ Item {
                     ColumnLayout {
                         spacing: 4
                         Layout.fillWidth: true
-                        Text { text: "Mapping Enabled Param"; color: "#71717a"; font.pixelSize: 11; font.bold: true }
+                        Text { text: "Reset Map Service Name"; color: "#71717a"; font.pixelSize: 11; font.bold: true }
                         Rectangle { 
                             Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#1f2937"
                             clip: true
                             TextInput { 
                                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
-                                text: root.mappingParam; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
-                                onEditingFinished: projectManager.mappingEnabledParam = text
+                                text: root.resetMapServiceName; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onEditingFinished: projectManager.resetMapServiceName = text
+                                HoverHandler { cursorShape: Qt.IBeamCursor }
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        spacing: 4
+                        Layout.fillWidth: true
+                        Text { text: "Reset Map Service Type"; color: "#71717a"; font.pixelSize: 11; font.bold: true }
+                        Rectangle { 
+                            Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#1f2937"
+                            clip: true
+                            TextInput { 
+                                anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
+                                text: root.resetMapServiceType; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onEditingFinished: projectManager.resetMapServiceType = text
+                                HoverHandler { cursorShape: Qt.IBeamCursor }
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        spacing: 4
+                        Layout.fillWidth: true
+                        Text { text: "Pause Mapping Service Name"; color: "#71717a"; font.pixelSize: 11; font.bold: true }
+                        Rectangle { 
+                            Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#1f2937"
+                            clip: true
+                            TextInput { 
+                                anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
+                                text: root.pauseMappingServiceName; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onEditingFinished: projectManager.pauseMappingServiceName = text
+                                HoverHandler { cursorShape: Qt.IBeamCursor }
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        spacing: 4
+                        Layout.fillWidth: true
+                        Text { text: "Pause Mapping Service Type"; color: "#71717a"; font.pixelSize: 11; font.bold: true }
+                        Rectangle { 
+                            Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#1f2937"
+                            clip: true
+                            TextInput { 
+                                anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
+                                text: root.pauseMappingServiceType; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onEditingFinished: projectManager.pauseMappingServiceType = text
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
                             }
                         }

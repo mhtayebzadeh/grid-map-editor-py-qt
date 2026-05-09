@@ -87,7 +87,10 @@ Rectangle {
                 scanTopic: root.scanTopic
                 tfTopic: root.tfTopic
                 robotFrame: root.robotFrame
-                mappingParam: root.slamMappingEnabledParam
+                resetMapServiceName: root.resetMapServiceName
+                resetMapServiceType: root.resetMapServiceType
+                pauseMappingServiceName: root.pauseMappingServiceName
+                pauseMappingServiceType: root.pauseMappingServiceType
                 
                 showRobot: root.showRobot
                 onShowRobotChanged: root.showRobot = showRobot

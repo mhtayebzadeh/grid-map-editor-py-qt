@@ -319,7 +319,6 @@ class MapController(QObject):
                 # Sync topics from project manager
                 mepro_data["map_topic"] = self._project_manager.mapTopic
                 mepro_data["scan_topic"] = self._project_manager.scanTopic
-                mepro_data["mapping_param"] = self._project_manager.mappingEnabledParam
                 mepro_data["tf_topic"] = self._project_manager.tfTopic
                 mepro_data["robot_frame"] = self._project_manager.robotFrame
                 

@@ -12,12 +12,15 @@ Rectangle {
         category: "SlamTopics"
         property alias mapTopic: slamMapTopicField.text
         property alias scanTopic: slamScanTopicField.text
-        property alias mappingEnabledParam: slamMappingEnabledParamField.text
         property alias tfTopic: slamTfTopicField.text
         property alias robotFrame: slamRobotFrameField.text
         property alias initialPoseTopic: slamInitPoseTopicField.text
         property alias useSimTime: slamUseSimTimeCheck.checked
         property alias initialUncertainty: slamInitUncertaintyField.text
+        property alias resetMapServiceName: slamResetMapServiceNameField.text
+        property alias resetMapServiceType: slamResetMapServiceTypeField.text
+        property alias pauseMappingServiceName: slamPauseMappingServiceNameField.text
+        property alias pauseMappingServiceType: slamPauseMappingServiceTypeField.text
     }
 
     Settings {
@@ -31,7 +34,7 @@ Rectangle {
         property string lastGateImageFolder: ""
     }
 
-    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution, string mapTopic, string scanTopic, string mappingParam, string tfTopic, string robotFrame, bool useSimTime)
+    signal startEditor(bool isSlamMode, string projectName, string projectPath, string mapFile, string yamlFile, string resolution, string mapTopic, string scanTopic, string tfTopic, string robotFrame, bool useSimTime, string resetMapServiceName, string resetMapServiceType, string pauseMappingServiceName, string pauseMappingServiceType)
     property bool isEditMode: true
 
     // ROS CONFIGURATION POPUP (FLOATING ON TOP)
@@ -39,7 +42,7 @@ Rectangle {
         id: rosConfigPopup
         anchors.centerIn: parent
         width: 650
-        height: 480
+        height: 600
         modal: true
         focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
@@ -49,10 +52,13 @@ Rectangle {
             slamScanTopicField.text = "/scan"
             slamTfTopicField.text = "/tf"
             slamRobotFrameField.text = "base_link"
-            slamMappingEnabledParamField.text = "/slam_toolbox/mapping_enabled"
             slamInitPoseTopicField.text = "/initialpose"
             slamUseSimTimeCheck.checked = false
             slamInitUncertaintyField.text = "1.5"
+            slamResetMapServiceNameField.text = "/slam_toolbox/reset"
+            slamResetMapServiceTypeField.text = "slam_toolbox/srv/Reset"
+            slamPauseMappingServiceNameField.text = "/slam_toolbox/pause_new_measurements"
+            slamPauseMappingServiceTypeField.text = "slam_toolbox/srv/Pause"
         }
 
         background: Rectangle { 
@@ -111,8 +117,12 @@ Rectangle {
                 projectManager.scanTopic = slamScanTopicField.text
                 projectManager.tfTopic = slamTfTopicField.text
                 projectManager.robotFrame = slamRobotFrameField.text
-                projectManager.mappingEnabledParam = slamMappingEnabledParamField.text
                 projectManager.initialPoseTopic = slamInitPoseTopicField.text
+                projectManager.initialUncertainty = parseFloat(slamInitUncertaintyField.text) || 1.5
+                projectManager.resetMapServiceName = slamResetMapServiceNameField.text
+                projectManager.resetMapServiceType = slamResetMapServiceTypeField.text
+                projectManager.pauseMappingServiceName = slamPauseMappingServiceNameField.text
+                projectManager.pauseMappingServiceType = slamPauseMappingServiceTypeField.text
                 
                 // Update global settings for persistence
                 if (window.slamSettings) {
@@ -120,10 +130,13 @@ Rectangle {
                     window.slamSettings.scanTopic = slamScanTopicField.text
                     window.slamSettings.tfTopic = slamTfTopicField.text
                     window.slamSettings.robotFrame = slamRobotFrameField.text
-                    window.slamSettings.mappingEnabledParam = slamMappingEnabledParamField.text
                     window.slamSettings.initialPoseTopic = slamInitPoseTopicField.text
                     window.slamSettings.useSimTime = slamUseSimTimeCheck.checked
                     window.slamSettings.initialUncertainty = parseFloat(slamInitUncertaintyField.text) || 1.5
+                    window.slamSettings.resetMapServiceName = slamResetMapServiceNameField.text
+                    window.slamSettings.resetMapServiceType = slamResetMapServiceTypeField.text
+                    window.slamSettings.pauseMappingServiceName = slamPauseMappingServiceNameField.text
+                    window.slamSettings.pauseMappingServiceType = slamPauseMappingServiceTypeField.text
                 }
                 
                 // Restart ROS to check topic availability on first page
@@ -131,138 +144,190 @@ Rectangle {
             }
         }
 
-        contentItem: ColumnLayout {
+        contentItem: ScrollView {
             anchors.fill: parent
-            anchors.margins: 0
-            spacing: 0
+            anchors.topMargin: 60
+            clip: true
+            ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
-            Item { Layout.preferredHeight: 60 } // Spacer for header
+            ColumnLayout {
+                width: parent.width
+                spacing: 0
 
-            GridLayout {
-                columns: 2
-                Layout.fillWidth: true
-                Layout.margins: 24
-                rowSpacing: 20
-                columnSpacing: 24
-
-                ColumnLayout {
+                GridLayout {
+                    columns: 2
                     Layout.fillWidth: true
-                    spacing: 4
-                    Text { text: "Map Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
-                    TextField {
-                        id: slamMapTopicField
-                        Layout.fillWidth: true
-                        text: "/map"
-                        color: "white"
-                        font.pixelSize: 13
-                        padding: 8
-                        background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
-                    }
-                }
+                    Layout.margins: 24
+                    rowSpacing: 20
+                    columnSpacing: 24
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Text { text: "Laser Scan Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
-                    TextField {
-                        id: slamScanTopicField
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "/scan"
-                        color: "white"
-                        font.pixelSize: 13
-                        padding: 8
-                        background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        spacing: 4
+                        Text { text: "Map Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamMapTopicField
+                            Layout.fillWidth: true
+                            text: "/map"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
                     }
-                }
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Text { text: "TF Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
-                    TextField {
-                        id: slamTfTopicField
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "/tf"
-                        color: "white"
-                        font.pixelSize: 13
-                        padding: 8
-                        selectByMouse: true
-                        background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        spacing: 4
+                        Text { text: "Laser Scan Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamScanTopicField
+                            Layout.fillWidth: true
+                            text: "/scan"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
                     }
-                }
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Text { text: "Robot Base Frame"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
-                    TextField {
-                        id: slamRobotFrameField
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "base_link"
-                        color: "white"
-                        font.pixelSize: 13
-                        padding: 8
-                        background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        spacing: 4
+                        Text { text: "TF Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamTfTopicField
+                            Layout.fillWidth: true
+                            text: "/tf"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            selectByMouse: true
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
                     }
-                }
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.columnSpan: 2
-                    spacing: 4
-                    Text { text: "Mapping Enabled Param (Slam Toolbox)"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
-                    TextField {
-                        id: slamMappingEnabledParamField
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "/slam_toolbox/mapping_enabled"
-                        color: "white"
-                        font.pixelSize: 13
-                        padding: 8
-                        background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        spacing: 4
+                        Text { text: "Robot Base Frame"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamRobotFrameField
+                            Layout.fillWidth: true
+                            text: "base_link"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
                     }
-                }
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.columnSpan: 1
-                    spacing: 4
-                    Text { text: "Initial Pose Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
-                    TextField {
-                        id: slamInitPoseTopicField
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "/initialpose"
-                        color: "white"
-                        font.pixelSize: 13
-                        padding: 8
-                        background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        Layout.columnSpan: 1
+                        spacing: 4
+                        Text { text: "Initial Pose Topic"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamInitPoseTopicField
+                            Layout.fillWidth: true
+                            text: "/initialpose"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
                     }
-                }
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.columnSpan: 1
-                    spacing: 4
-                    Text { text: "Init Uncertainty (m)"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
-                    TextField {
-                        id: slamInitUncertaintyField
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "1.5"
-                        color: "white"
-                        font.pixelSize: 13
-                        padding: 8
-                        validator: DoubleValidator { bottom: 0.1; top: 10.0 }
-                        background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        Layout.columnSpan: 1
+                        spacing: 4
+                        Text { text: "Init Uncertainty (m)"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamInitUncertaintyField
+                            Layout.fillWidth: true
+                            text: "1.5"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            validator: DoubleValidator { bottom: 0.1; top: 10.0 }
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
                     }
-                }
 
-                CheckBox {
-                    id: slamUseSimTimeCheck
-                    Layout.columnSpan: 2
-                    text: "Use Simulation Time"
-                    font.pixelSize: 12
-                    font.bold: true
-                    palette.windowText: "white"
-                    checked: false
+                    CheckBox {
+                        id: slamUseSimTimeCheck
+                        Layout.columnSpan: 2
+                        text: "Use Simulation Time"
+                        font.pixelSize: 12
+                        font.bold: true
+                        palette.windowText: "white"
+                        checked: false
+                    }
+
+                    Rectangle { Layout.columnSpan: 2; height: 1; color: "#38404a"; Layout.fillWidth: true; Layout.topMargin: 5; Layout.bottomMargin: 5 }
+
+                    Text { text: "SLAM TOOLBOX SERVICES"; color: "#3b82f6"; font.pixelSize: 11; font.bold: true; Layout.columnSpan: 2 }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Text { text: "Reset Map Service Name"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamResetMapServiceNameField
+                            Layout.fillWidth: true
+                            text: "/slam_toolbox/reset"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Text { text: "Reset Map Service Type"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamResetMapServiceTypeField
+                            Layout.fillWidth: true
+                            text: "slam_toolbox/srv/Reset"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Text { text: "Pause Mapping Service Name"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamPauseMappingServiceNameField
+                            Layout.fillWidth: true
+                            text: "/slam_toolbox/pause_new_measurements"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Text { text: "Pause Mapping Service Type"; color: "#a0a5ab"; font.pixelSize: 11; font.bold: true }
+                        TextField {
+                            id: slamPauseMappingServiceTypeField
+                            Layout.fillWidth: true
+                            text: "slam_toolbox/srv/Pause"
+                            color: "white"
+                            font.pixelSize: 13
+                            padding: 8
+                            background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                        }
+                    }
                 }
             }
         }
@@ -297,7 +362,7 @@ Rectangle {
                 
                 Rectangle {
                     width: 40; height: 40; color: "#252b32"; radius: 4
-                    Text { anchors.centerIn: parent; text: "⚙️"; font.pixelSize: 20; color: "white" }
+                    Text { anchors.centerIn: parent; text: "⚙\uFE0F"; font.pixelSize: 20; color: "white" }
                     MouseArea { anchors.fill: parent; onClicked: rosConfigPopup.open() }
                 }
             }
@@ -408,6 +473,13 @@ Rectangle {
                                         errorDialog.open()
                                         return
                                     }
+                                    
+                                    // If in SLAM mode (not Edit mode), reset the map
+                                    if (!root.isEditMode) {
+                                        console.log("Starting new SLAM project, resetting map via service: " + slamResetMapServiceNameField.text)
+                                        robotHandler.call_service_async(slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text)
+                                    }
+                                    
                                     slamFolderDialog.open()
                                 }
                             }
@@ -647,8 +719,8 @@ Rectangle {
         currentFolder: folderSettings.lastSlamFolder !== "" ? folderSettings.lastSlamFolder : StandardPaths.writableLocation(StandardPaths.HomeLocation)
         onAccepted: {
             folderSettings.lastSlamFolder = currentFolder
-            if(projectManager.createProject(slamProjNameField.text, currentFolder.toString(), "", "", "0.05", slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
-                root.startEditor(true, projectManager.projectName, projectManager.projectPath, "", "", "0.05", projectManager.mapTopic, projectManager.scanTopic, projectManager.mappingEnabledParam, projectManager.tfTopic, projectManager.robotFrame, slamUseSimTimeCheck.checked)
+            if(projectManager.createProject(slamProjNameField.text, currentFolder.toString(), "", "", "0.05", slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
+                root.startEditor(true, projectManager.projectName, projectManager.projectPath, "", "", "0.05", projectManager.mapTopic, projectManager.scanTopic, projectManager.tfTopic, projectManager.robotFrame, slamUseSimTimeCheck.checked, slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text, slamPauseMappingServiceNameField.text, slamPauseMappingServiceTypeField.text)
             }
         }
     }
@@ -681,8 +753,8 @@ Rectangle {
         currentFolder: folderSettings.lastProjectSaveFolder !== "" ? folderSettings.lastProjectSaveFolder : StandardPaths.writableLocation(StandardPaths.HomeLocation)
         onAccepted: {
             folderSettings.lastProjectSaveFolder = currentFolder
-            if (projectManager.createProject(projNameField.text, currentFolder.toString(), mapPathField.text, yamlPathField.text, resField.text, slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked)
+            if (projectManager.createProject(projNameField.text, currentFolder.toString(), mapPathField.text, yamlPathField.text, resField.text, slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked, slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text, slamPauseMappingServiceNameField.text, slamPauseMappingServiceTypeField.text)
             }
         }
     }
@@ -695,7 +767,7 @@ Rectangle {
         onAccepted: {
             folderSettings.lastOpenProjectFolder = currentFolder
             if (projectManager.openProject(selectedFile.toString().replace("file://", ""))) {
-                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked)
+                root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked, slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text, slamPauseMappingServiceNameField.text, slamPauseMappingServiceTypeField.text)
             }
         }
     }
@@ -708,7 +780,7 @@ Rectangle {
         onAccepted: {
             folderSettings.lastOpenProjectFolder = currentFolder
             if (projectManager.openProject(selectedFile.toString().replace("file://", ""))) {
-                root.startEditor(true, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamMappingEnabledParamField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked)
+                root.startEditor(true, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked, slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text, slamPauseMappingServiceNameField.text, slamPauseMappingServiceTypeField.text)
             }
         }
     }

@@ -17,19 +17,22 @@ ApplicationWindow {
         category: "SlamTopics"
         property string mapTopic: "/map"
         property string scanTopic: "/scan"
-        property string mappingEnabledParam: "/slam_toolbox/mapping_enabled"
         property string tfTopic: "/tf"
         property string robotFrame: "base_link"
         property string initialPoseTopic: "/initialpose"
         property bool useSimTime: false
         property real initialUncertainty: 1.5
+        property string resetMapServiceName: "/slam_toolbox/reset"
+        property string resetMapServiceType: "slam_toolbox/srv/Reset"
+        property string pauseMappingServiceName: "/slam_toolbox/pause_new_measurements"
+        property string pauseMappingServiceType: "slam_toolbox/srv/Pause"
     }
 
     StackView {
         id: stackView
         anchors.fill: parent
         initialItem: StartScreen {
-            onStartEditor: (isSlamMode, projectName, projectPath, mapFile, yamlFile, resolution, mapTopic, scanTopic, mappingParam, tfTopic, robotFrame, useSimTime) => {
+            onStartEditor: (isSlamMode, projectName, projectPath, mapFile, yamlFile, resolution, mapTopic, scanTopic, tfTopic, robotFrame, useSimTime, resetMapServiceName, resetMapServiceType, pauseMappingServiceName, pauseMappingServiceType) => {
                 
                 // If in edit mode, tell python to load the map!
                 if (!isSlamMode && (mapFile !== "" || yamlFile !== "")) {
@@ -42,10 +45,13 @@ ApplicationWindow {
                     "projectPath": projectPath,
                     "slamMapTopic": mapTopic,
                     "slamScanTopic": scanTopic,
-                    "slamMappingEnabledParam": mappingParam,
                     "slamTfTopic": tfTopic,
                     "slamRobotFrame": robotFrame,
-                    "slamUseSimTime": useSimTime
+                    "slamUseSimTime": useSimTime,
+                    "slamResetMapServiceName": resetMapServiceName,
+                    "slamResetMapServiceType": resetMapServiceType,
+                    "slamPauseMappingServiceName": pauseMappingServiceName,
+                    "slamPauseMappingServiceType": pauseMappingServiceType
                 })
             }
         }
@@ -136,10 +142,13 @@ ApplicationWindow {
         projectManager.scanTopic = slamSettings.scanTopic
         projectManager.tfTopic = slamSettings.tfTopic
         projectManager.robotFrame = slamSettings.robotFrame
-        projectManager.mappingEnabledParam = slamSettings.mappingEnabledParam
         projectManager.initialPoseTopic = slamSettings.initialPoseTopic
         projectManager.useSimTime = slamSettings.useSimTime
         projectManager.initialUncertainty = slamSettings.initialUncertainty
+        projectManager.resetMapServiceName = slamSettings.resetMapServiceName
+        projectManager.resetMapServiceType = slamSettings.resetMapServiceType
+        projectManager.pauseMappingServiceName = slamSettings.pauseMappingServiceName
+        projectManager.pauseMappingServiceType = slamSettings.pauseMappingServiceType
         
         robotHandler.initialUncertainty = projectManager.initialUncertainty
         
