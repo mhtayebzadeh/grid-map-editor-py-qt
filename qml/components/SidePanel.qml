@@ -91,6 +91,8 @@ Rectangle {
                 resetMapServiceType: root.resetMapServiceType
                 pauseMappingServiceName: root.pauseMappingServiceName
                 pauseMappingServiceType: root.pauseMappingServiceType
+                isMappingActive: root.isMappingActive
+                onIsMappingActiveChanged: root.isMappingActive = isMappingActive
                 
                 showRobot: root.showRobot
                 onShowRobotChanged: root.showRobot = showRobot

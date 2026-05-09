@@ -12,6 +12,7 @@ try:
     from nav_msgs.msg import Odometry, OccupancyGrid
     from sensor_msgs.msg import LaserScan
     import tf2_ros
+    from rosidl_runtime_py.utilities import get_service
     HAS_ROS2 = True
 except ImportError:
     HAS_ROS2 = False
@@ -354,11 +355,10 @@ class ROSManager(QObject):
                 raise ValueError(f"Invalid service type format: {service_type}. Expected 'package/srv/Type'")
             
             package_name = parts[0]
-            # parts[1] is usually 'srv'
             srv_type_name = parts[2]
             
-            module = importlib.import_module(f"{package_name}.srv")
-            srv_class = getattr(module, srv_type_name)
+            # Use rosidl_runtime_py for robust dynamic importing
+            srv_class = get_service(service_type)
             
             client = self.node.create_client(srv_class, service_name)
             

@@ -47,7 +47,8 @@ Rectangle {
     property bool showRobot: true
     property bool showLaserScan: true
     property bool safetyLockEnabled: true
-    property bool editingDisabled: safetyLockEnabled && isSlamMode
+    property bool isMappingActive: isSlamMode
+    property bool editingDisabled: safetyLockEnabled && isMappingActive
 
     
     // Map Edit State
