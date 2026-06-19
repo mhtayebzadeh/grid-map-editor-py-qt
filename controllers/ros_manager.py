@@ -2,6 +2,7 @@ import threading
 import math
 import random
 import time
+import importlib
 from PySide6.QtCore import QObject, Property, Signal, Slot, QTimer
 
 try:
@@ -11,6 +12,7 @@ try:
     from nav_msgs.msg import Odometry, OccupancyGrid
     from sensor_msgs.msg import LaserScan
     import tf2_ros
+    from rosidl_runtime_py.utilities import get_service
     HAS_ROS2 = True
 except ImportError:
     HAS_ROS2 = False
@@ -338,6 +340,50 @@ class ROSManager(QObject):
         
         self.init_pose_pub.publish(msg)
         self.logMessage.emit(f"Published initial pose: x={x:.2f}, y={y:.2f}", "success")
+
+    @Slot(str, str)
+    def call_service_async(self, service_name, service_type):
+        """Calls a ROS 2 service asynchronously."""
+        if not self.active or not HAS_ROS2 or self.node is None:
+            self.logMessage.emit(f"Cannot call service {service_name}: ROS not connected", "warning")
+            return
+
+        try:
+            # Parse service type (e.g., "slam_toolbox/srv/Reset")
+            parts = service_type.split('/')
+            if len(parts) != 3:
+                raise ValueError(f"Invalid service type format: {service_type}. Expected 'package/srv/Type'")
+            
+            package_name = parts[0]
+            srv_type_name = parts[2]
+            
+            # Use rosidl_runtime_py for robust dynamic importing
+            srv_class = get_service(service_type)
+            
+            client = self.node.create_client(srv_class, service_name)
+            
+            if not client.wait_for_service(timeout_sec=1.0):
+                self.logMessage.emit(f"Service {service_name} not available", "error")
+                return
+
+            request = srv_class.Request()
+            # Most reset/pause services have empty requests, but we can extend this if needed
+            
+            future = client.call_async(request)
+            self.logMessage.emit(f"Calling service {service_name}...", "info")
+            
+            def callback(future):
+                try:
+                    response = future.result()
+                    self.logMessage.emit(f"Service {service_name} call successful", "success")
+                except Exception as e:
+                    self.logMessage.emit(f"Service {service_name} call failed: {str(e)}", "error")
+            
+            future.add_done_callback(callback)
+            
+        except Exception as e:
+            print(f"Error calling service: {e}")
+            self.logMessage.emit(f"Error calling service {service_name}: {str(e)}", "error")
 
     def _yaw_to_quat(self, yaw):
         from geometry_msgs.msg import Quaternion

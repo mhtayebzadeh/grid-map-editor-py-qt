@@ -21,12 +21,17 @@ class ProjectManager(QObject):
         self._edited_overlay = ""
         self._map_topic = "/map"
         self._scan_topic = "/scan"
-        self._mapping_param = "/slam_toolbox/mapping_enabled"
         self._tf_topic = "/tf"
         self._robot_frame = "base_link"
         self._init_pose_topic = "/initialpose"
         self._use_sim_time = False
         self._init_uncertainty = 1.5
+        
+        # New slam_toolbox service settings
+        self._reset_map_service_name = "/slam_toolbox/reset"
+        self._reset_map_service_type = "slam_toolbox/srv/Reset"
+        self._pause_mapping_service_name = "/slam_toolbox/pause_new_measurements"
+        self._pause_mapping_service_type = "slam_toolbox/srv/Pause"
 
     @Property(str, notify=rosConfigChanged)
     def initialPoseTopic(self): return self._init_pose_topic
@@ -49,6 +54,34 @@ class ProjectManager(QObject):
         self._init_uncertainty = val
         self.rosConfigChanged.emit()
 
+    @Property(str, notify=rosConfigChanged)
+    def resetMapServiceName(self): return self._reset_map_service_name
+    @resetMapServiceName.setter
+    def resetMapServiceName(self, val):
+        self._reset_map_service_name = val
+        self.rosConfigChanged.emit()
+
+    @Property(str, notify=rosConfigChanged)
+    def resetMapServiceType(self): return self._reset_map_service_type
+    @resetMapServiceType.setter
+    def resetMapServiceType(self, val):
+        self._reset_map_service_type = val
+        self.rosConfigChanged.emit()
+
+    @Property(str, notify=rosConfigChanged)
+    def pauseMappingServiceName(self): return self._pause_mapping_service_name
+    @pauseMappingServiceName.setter
+    def pauseMappingServiceName(self, val):
+        self._pause_mapping_service_name = val
+        self.rosConfigChanged.emit()
+
+    @Property(str, notify=rosConfigChanged)
+    def pauseMappingServiceType(self): return self._pause_mapping_service_type
+    @pauseMappingServiceType.setter
+    def pauseMappingServiceType(self, val):
+        self._pause_mapping_service_type = val
+        self.rosConfigChanged.emit()
+
     @Property(str, notify=projectLoaded)
     def projectName(self):
         return self._project_name
@@ -69,13 +102,6 @@ class ProjectManager(QObject):
     @scanTopic.setter
     def scanTopic(self, val): 
         self._scan_topic = val
-        self.rosConfigChanged.emit()
-
-    @Property(str, notify=rosConfigChanged)
-    def mappingEnabledParam(self): return self._mapping_param
-    @mappingEnabledParam.setter
-    def mappingEnabledParam(self, val): 
-        self._mapping_param = val
         self.rosConfigChanged.emit()
 
     @Property(str, notify=rosConfigChanged)
@@ -108,8 +134,8 @@ class ProjectManager(QObject):
             return uri[7:]
         return uri
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, result=bool)
-    def createProject(self, name, folder_uri, map_uri, yaml_uri, resolution_str, map_topic="/map", scan_topic="/scan", mapping_param="", tf_topic="/tf", robot_frame="base_link"):
+    @Slot(str, str, str, str, str, str, str, str, str, result=bool)
+    def createProject(self, name, folder_uri, map_uri, yaml_uri, resolution_str, map_topic="/map", scan_topic="/scan", tf_topic="/tf", robot_frame="base_link"):
         import shutil
         try:
             folder_path = self._uri_to_path(folder_uri)
@@ -170,12 +196,15 @@ class ProjectManager(QObject):
                 "merged_map": "",
                 "map_topic": map_topic,
                 "scan_topic": scan_topic,
-                "mapping_param": mapping_param,
                 "tf_topic": tf_topic,
                 "robot_frame": robot_frame,
                 "initial_pose_topic": self._init_pose_topic,
                 "use_sim_time": self._use_sim_time,
                 "initial_uncertainty": self._init_uncertainty,
+                "reset_map_service_name": self._reset_map_service_name,
+                "reset_map_service_type": self._reset_map_service_type,
+                "pause_mapping_service_name": self._pause_mapping_service_name,
+                "pause_mapping_service_type": self._pause_mapping_service_type,
                 "gates_yaml": "gates_list.yaml"
             }
             
@@ -189,7 +218,6 @@ class ProjectManager(QObject):
             self._resolution = res
             self._map_topic = map_topic
             self._scan_topic = scan_topic
-            self._mapping_param = mapping_param
             self._tf_topic = tf_topic
             self._robot_frame = robot_frame
             self._is_loaded = True
@@ -220,12 +248,15 @@ class ProjectManager(QObject):
             self._edited_overlay = data.get("edited_overlay", "")
             self._map_topic = data.get("map_topic", "/map")
             self._scan_topic = data.get("scan_topic", "/scan")
-            self._mapping_param = data.get("mapping_param", "")
             self._tf_topic = data.get("tf_topic", "/tf")
             self._robot_frame = data.get("robot_frame", "base_link")
             self._init_pose_topic = data.get("initial_pose_topic", "/initialpose")
             self._use_sim_time = data.get("use_sim_time", False)
             self._init_uncertainty = data.get("initial_uncertainty", 1.5)
+            self._reset_map_service_name = data.get("reset_map_service_name", "/slam_toolbox/reset")
+            self._reset_map_service_type = data.get("reset_map_service_type", "slam_toolbox/srv/Reset")
+            self._pause_mapping_service_name = data.get("pause_mapping_service_name", "/slam_toolbox/pause_new_measurements")
+            self._pause_mapping_service_type = data.get("pause_mapping_service_type", "slam_toolbox/srv/Pause")
             self._gates_yaml = data.get("gates_yaml", "gates_list.yaml")
             
             self._is_loaded = True
@@ -290,12 +321,15 @@ class ProjectManager(QObject):
             # Persist current ROS topics as well
             data["map_topic"] = self._map_topic
             data["scan_topic"] = self._scan_topic
-            data["mapping_param"] = self._mapping_param
             data["tf_topic"] = self._tf_topic
             data["robot_frame"] = self._robot_frame
             data["initial_pose_topic"] = self._init_pose_topic
             data["use_sim_time"] = self._use_sim_time
             data["initial_uncertainty"] = self._init_uncertainty
+            data["reset_map_service_name"] = self._reset_map_service_name
+            data["reset_map_service_type"] = self._reset_map_service_type
+            data["pause_mapping_service_name"] = self._pause_mapping_service_name
+            data["pause_mapping_service_type"] = self._pause_mapping_service_type
 
             now_iso = datetime.datetime.now().isoformat()
             if "createdAt" not in data:

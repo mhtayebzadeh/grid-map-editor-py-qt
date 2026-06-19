@@ -24,9 +24,12 @@ Rectangle {
     // SLAM Topics (Persisted via Settings)
     property string slamMapTopic: ""
     property string slamScanTopic: ""
-    property string slamMappingEnabledParam: ""
     property string slamTfTopic: ""
     property string slamRobotFrame: ""
+    property string slamResetMapServiceName: ""
+    property string slamResetMapServiceType: ""
+    property string slamPauseMappingServiceName: ""
+    property string slamPauseMappingServiceType: ""
     property bool slamUseSimTime: false
 
     // Global properties used by sub-tabs
@@ -34,14 +37,18 @@ Rectangle {
     property string scanTopic: (projectManager && projectManager.isLoaded) ? projectManager.scanTopic : slamScanTopic
     property string tfTopic: (projectManager && projectManager.isLoaded) ? projectManager.tfTopic : slamTfTopic
     property string robotFrame: (projectManager && projectManager.isLoaded) ? projectManager.robotFrame : slamRobotFrame
+    property string resetMapServiceName: (projectManager && projectManager.isLoaded) ? projectManager.resetMapServiceName : slamResetMapServiceName
+    property string resetMapServiceType: (projectManager && projectManager.isLoaded) ? projectManager.resetMapServiceType : slamResetMapServiceType
+    property string pauseMappingServiceName: (projectManager && projectManager.isLoaded) ? projectManager.pauseMappingServiceName : slamPauseMappingServiceName
+    property string pauseMappingServiceType: (projectManager && projectManager.isLoaded) ? projectManager.pauseMappingServiceType : slamPauseMappingServiceType
 
     // Global UI State
     property string activeMode: "project" // "project", "map-edit", "layers", "gates"
     property bool showRobot: true
     property bool showLaserScan: true
     property bool safetyLockEnabled: true
-    property bool mappingActive: isSlamMode
-    property bool editingDisabled: safetyLockEnabled && mappingActive
+    property bool isMappingActive: isSlamMode
+    property bool editingDisabled: safetyLockEnabled && isMappingActive
 
     
     // Map Edit State
@@ -153,7 +160,6 @@ Rectangle {
                 if (root.slamScanTopic !== "") projectManager.scanTopic = root.slamScanTopic;
                 if (root.slamTfTopic !== "") projectManager.tfTopic = root.slamTfTopic;
                 if (root.slamRobotFrame !== "") projectManager.robotFrame = root.slamRobotFrame;
-                if (root.slamMappingEnabledParam !== "") projectManager.mappingEnabledParam = root.slamMappingEnabledParam;
                 projectManager.useSimTime = root.slamUseSimTime;
 
                 robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame, projectManager.initialPoseTopic, projectManager.useSimTime);
