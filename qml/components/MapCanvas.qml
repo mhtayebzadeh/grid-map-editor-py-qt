@@ -40,6 +40,7 @@ Rectangle {
     property bool showingPreview: false
     property var previewPolyPts: []
     property string editLayerPath: ""
+    property real editOpacity: 1.0
 
     onEditLayerPathChanged: {
         if (editLayerPath && (mapController ? mapController.mapWidth : 0) > 0) {
@@ -299,7 +300,7 @@ Rectangle {
                     id: editCanvas
                     anchors.fill: parent
                     visible: (mapController ? mapController.mapWidth : 0) > 0 && (mapController ? mapController.mapHeight : 0) > 0
-                    
+                    opacity: mapCanvasRoot.editOpacity
                     
                     canvasSize: Qt.size(mapCanvasRoot.canvasWidth, mapCanvasRoot.canvasHeight)
                     
@@ -330,8 +331,11 @@ Rectangle {
                             var size = draw.size;
                             var x1 = draw.x1, y1 = draw.y1, x2 = draw.x2, y2 = draw.y2;
                             
-                            if (tool === "obstacle" || tool === "free" || tool === "revert") {
-                                ctx.strokeStyle = (tool === "obstacle") ? "black" : (tool === "free") ? "white" : "rgba(0,0,0,0)";
+                            if (tool === "obstacle" || tool === "free" || tool === "unknown" || tool === "revert") {
+                                ctx.strokeStyle = (tool === "obstacle") ? "black" : 
+                                                  (tool === "free") ? "white" : 
+                                                  (tool === "unknown") ? "rgb(127,127,127)" : 
+                                                  "rgba(0,0,0,0)";
                                 if (tool === "revert") {
                                     ctx.globalCompositeOperation = "destination-out";
                                     ctx.strokeStyle = "black"; // alpha matters but dest-out ignores color
@@ -633,7 +637,8 @@ Rectangle {
                             return root.activeLayerColor || "#ef4444"
                         }
                         return (root.currentMapEditTool === "obstacle" || root.currentLayerTool === "eraser") ? "black" : 
-                               (root.currentMapEditTool === "free") ? "white" : "#3b82f6"
+                               (root.currentMapEditTool === "free") ? "white" : 
+                               (root.currentMapEditTool === "unknown") ? "gray" : "#3b82f6"
                     }
                     border.color: {
                         if (root.activeMode === "layers" && root.currentLayerTool !== "eraser") {
@@ -858,7 +863,7 @@ Rectangle {
                             mapCanvasRoot.showingPreview = true
                         }
                     } else if (root.activeMode === "map-edit") {
-                        if (root.currentMapEditTool === "obstacle" || root.currentMapEditTool === "free" || root.currentMapEditTool === "revert") {
+                        if (root.currentMapEditTool === "obstacle" || root.currentMapEditTool === "free" || root.currentMapEditTool === "unknown" || root.currentMapEditTool === "revert") {
                             isDrawing = true
                             lastDrawPt = pt
                             editCanvas.queueDraw(root.currentMapEditTool, root.brushSize, lastDrawPt.x, lastDrawPt.y, pt.x, pt.y)
@@ -905,7 +910,7 @@ Rectangle {
                     } else if (root.activeMode === "layers" && root.currentLayerTool === "line") {
                         mapCanvasRoot.previewToX = pt.x
                         mapCanvasRoot.previewToY = pt.y
-                    } else if (root.activeMode === "map-edit" && (root.currentMapEditTool === "obstacle" || root.currentMapEditTool === "free" || root.currentMapEditTool === "revert")) {
+                    } else if (root.activeMode === "map-edit" && (root.currentMapEditTool === "obstacle" || root.currentMapEditTool === "free" || root.currentMapEditTool === "unknown" || root.currentMapEditTool === "revert")) {
                         editCanvas.queueDraw(root.currentMapEditTool, root.brushSize, lastDrawPt.x, lastDrawPt.y, pt.x, pt.y)
                         lastDrawPt = pt
                     }

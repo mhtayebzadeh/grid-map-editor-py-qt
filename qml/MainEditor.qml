@@ -55,6 +55,7 @@ Rectangle {
     property string currentMapEditTool: "obstacle" // "obstacle", "free", "revert"
     property string editLayerPath: ""
     property int brushSize: 10
+    property real editOverlayOpacity: 0.9 // Default to 10% transparency (90% opacity)
 
     // Gates State
     property var pendingGateModel: null
@@ -266,6 +267,7 @@ Rectangle {
             id: mapCanvas
             SplitView.fillWidth: true
             editLayerPath: root.editLayerPath
+            editOpacity: root.editOverlayOpacity
         }
     }
 

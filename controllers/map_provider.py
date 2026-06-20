@@ -232,14 +232,6 @@ class MapController(QObject):
             # Save edit layer (PNG to preserve transparency)
             cv2.imwrite(str(edit_layer_path), overlay_img)
             
-            # For merging, we still need a grayscale version where alpha=0 is neutral(127)
-            if len(overlay_img.shape) == 3 and overlay_img.shape[2] == 4:
-                r, g, b, a = cv2.split(overlay_img)
-                gray_for_merge = cv2.cvtColor(overlay_img[:, :, :3], cv2.COLOR_BGR2GRAY)
-                gray_for_merge[a == 0] = 127
-            else:
-                gray_for_merge = cv2.cvtColor(overlay_img[:, :, :3], cv2.COLOR_BGR2GRAY) if len(overlay_img.shape) == 3 and overlay_img.shape[2] >= 3 else overlay_img
-            
             # 2. Merge with original PGM map
             original_pgm_path = self._project_manager.getOriginalMap()
             project_dir = Path(self._project_manager.projectPath)
@@ -264,13 +256,30 @@ class MapController(QObject):
                 print(f"Error: Could not read original map at {original_pgm_path}")
                 return
 
-            # Ensure gray_for_merge matches original map size
-            if gray_for_merge.shape[0] != orig_map.shape[0] or gray_for_merge.shape[1] != orig_map.shape[1]:
-                gray_for_merge = cv2.resize(gray_for_merge, (orig_map.shape[1], orig_map.shape[0]), interpolation=cv2.INTER_NEAREST)
+            # Ensure overlay matches original map size before any split/grayscale conversion
+            if overlay_img.shape[0] != orig_map.shape[0] or overlay_img.shape[1] != orig_map.shape[1]:
+                overlay_img = cv2.resize(overlay_img, (orig_map.shape[1], orig_map.shape[0]), interpolation=cv2.INTER_NEAREST)
 
-            # 3. Apply overlay (anything not 127 is a change)
-            mask = (gray_for_merge != 127)
-            orig_map[mask] = gray_for_merge[mask]
+            # For merging, check the alpha channel (fully or semi-opaque pixels represent active modifications)
+            if len(overlay_img.shape) == 3 and overlay_img.shape[2] == 4:
+                r, g, b, a = cv2.split(overlay_img)
+                gray_for_merge = cv2.cvtColor(overlay_img[:, :, :3], cv2.COLOR_BGR2GRAY)
+                mask = (a > 127)
+            else:
+                gray_for_merge = cv2.cvtColor(overlay_img[:, :, :3], cv2.COLOR_BGR2GRAY) if len(overlay_img.shape) == 3 and overlay_img.shape[2] >= 3 else overlay_img
+                mask = (gray_for_merge != 127)
+
+            # Map the overlay values to standard PGM values (where 205 = unknown, 254 = free, 0 = occupied)
+            gray_mapped = np.copy(gray_for_merge)
+            mask_unknown = (gray_for_merge >= 100) & (gray_for_merge <= 150)
+            mask_free = (gray_for_merge > 150)
+            mask_occupied = (gray_for_merge < 100)
+            
+            gray_mapped[mask_unknown] = 205
+            gray_mapped[mask_free] = 254
+            gray_mapped[mask_occupied] = 0
+
+            orig_map[mask] = gray_mapped[mask]
             
             # 4. Save merged map
             cv2.imwrite(str(merged_path), orig_map)
