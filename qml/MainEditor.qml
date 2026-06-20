@@ -129,7 +129,7 @@ Rectangle {
     ListModel {
         id: layersModel
         Component.onCompleted: {
-            mapController.isSlamMode = root.mappingActive;
+            mapController.isSlamMode = root.isMappingActive;
             
             if (!root.isSlamMode && projectManager.isLoaded) {
                 let layers = projectManager.getLayers();
@@ -244,9 +244,9 @@ Rectangle {
         );
     }
 
-    onMappingActiveChanged: {
-        mapController.isSlamMode = mappingActive;
-        statusPanel.addLog("Operation Mode changed: " + (mappingActive ? "Mapping (SLAM)" : "Map Editing"), "info");
+    onIsMappingActiveChanged: {
+        mapController.isSlamMode = isMappingActive;
+        statusPanel.addLog("Operation Mode changed: " + (isMappingActive ? "Mapping (SLAM)" : "Map Editing"), "info");
     }
 
     SplitView {

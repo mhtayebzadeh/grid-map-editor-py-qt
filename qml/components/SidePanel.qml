@@ -84,8 +84,6 @@ Rectangle {
                 projectName: root.projectName
                 projectPath: root.projectPath
                 isSlamMode: root.isSlamMode
-                mappingActive: root.mappingActive
-                onMappingActiveChanged: root.mappingActive = mappingActive
                 mapTopic: root.mapTopic
                 scanTopic: root.scanTopic
                 tfTopic: root.tfTopic

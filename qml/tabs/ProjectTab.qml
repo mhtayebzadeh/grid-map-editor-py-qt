@@ -10,7 +10,6 @@ Item {
     property string projectName: ""
     property string projectPath: ""
     property bool isSlamMode: false
-    property bool mappingActive: false
     property string mapTopic: ""
     property string scanTopic: ""
     property string tfTopic: ""
@@ -41,102 +40,7 @@ Item {
                 width: parent.width - 32
                 spacing: 12
 
-                // OPERATION MODE SECTION
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    
-                    Text { 
-                        text: "OPERATION MODE"
-                        color: "#9ca3af"
-                        font.pixelSize: 12
-                        font.bold: true
-                        font.letterSpacing: 1.2
-                    }
 
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 40
-                        color: "#111827"
-                        radius: 6
-                        border.color: "#1f2937"
-                        
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 4
-                            spacing: 4
-                            
-                            // Mapping (SLAM) Tab
-                            Rectangle {
-                                id: mappingBtn
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                color: root.mappingActive ? "#2563eb" : "transparent"
-                                radius: 4
-                                opacity: root.isSlamMode ? 1.0 : 0.4
-                                
-                                RowLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 8
-                                    Rectangle {
-                                        width: 8; height: 8; radius: 4
-                                        color: root.mappingActive ? "white" : "#4b5563"
-                                        visible: root.isSlamMode
-                                    }
-                                    Text {
-                                        text: "Mapping (SLAM)"
-                                        color: root.mappingActive ? "white" : "#9ca3af"
-                                        font.pixelSize: 13
-                                        font.bold: root.mappingActive
-                                    }
-                                }
-                                
-                                MouseArea {
-                                    anchors.fill: parent
-                                    enabled: root.isSlamMode
-                                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                    onClicked: root.mappingActive = true
-                                }
-                            }
-                            
-                            // Map Editing Tab
-                            Rectangle {
-                                id: editingBtn
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                color: !root.mappingActive ? "#2563eb" : "transparent"
-                                radius: 4
-                                
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "Map Editing"
-                                    color: !root.mappingActive ? "white" : "#9ca3af"
-                                    font.pixelSize: 13
-                                    font.bold: !root.mappingActive
-                                }
-                                
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.mappingActive = false
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: !root.isSlamMode ? "SLAM is disabled because you are editing an existing map." : 
-                              root.mappingActive ? "Live mapping is active. Safety lock prevents editing." :
-                              "Mapping is paused. You can now edit the map layers."
-                        color: "#9ca3af"
-                        font.pixelSize: 11
-                        font.italic: true
-                        wrapMode: Text.Wrap
-                    }
-                }
-
-                Rectangle { Layout.fillWidth: true; height: 1; color: "#1f2937"; Layout.topMargin: 4; Layout.bottomMargin: 4 }
 
                 Text { text: "PROJECT INFO"; color: "#9ca3af"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.2 }
 
@@ -193,16 +97,19 @@ Item {
                             Layout.fillHeight: true
                             color: root.isMappingActive ? "#ef4444" : "transparent"
                             radius: 6
+                            opacity: root.isSlamMode ? 1.0 : 0.4
                             
                             RowLayout {
                                 anchors.centerIn: parent
                                 spacing: 8
-                                Rectangle { width: 8; height: 8; radius: 4; color: root.isMappingActive ? "white" : "#4b5563"; opacity: root.isMappingActive ? 1.0 : 0.5 }
+                                Rectangle { width: 8; height: 8; radius: 4; color: root.isMappingActive ? "white" : "#4b5563"; opacity: root.isMappingActive ? 1.0 : 0.5; visible: root.isSlamMode }
                                 Text { text: "Mapping (SLAM)"; color: "white"; font.bold: root.isMappingActive; font.pixelSize: 13 }
                             }
                             
                             MouseArea {
                                 anchors.fill: parent
+                                enabled: root.isSlamMode
+                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: {
                                     if (!root.isMappingActive) {
                                         warningDialog.open()
@@ -227,6 +134,7 @@ Item {
                             
                             MouseArea {
                                 anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     if (root.isMappingActive) {
                                         confirmDialog.open()
@@ -238,13 +146,14 @@ Item {
                 }
                 
                 Text {
-                    visible: root.isMappingActive && root.safetyLockEnabled
-                    text: "Map annotation is disabled while SLAM is active to prevent data corruption."
-                    color: "#f87171"
-                    font.pixelSize: 12
-                    font.italic: true
-                    wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                    text: !root.isSlamMode ? "SLAM is disabled because you are editing an existing map." :
+                          root.isMappingActive ? (root.safetyLockEnabled ? "Live mapping is active. Safety lock prevents editing to prevent data corruption." : "Live mapping is active. Editing is allowed (Safety lock disabled).") :
+                          "Mapping is paused. You can now edit the map layers."
+                    color: !root.isSlamMode ? "#9ca3af" : (root.isMappingActive ? "#f87171" : "#4ade80")
+                    font.pixelSize: 11
+                    font.italic: true
+                    wrapMode: Text.Wrap
                 }
             }
 
