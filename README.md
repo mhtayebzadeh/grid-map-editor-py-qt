@@ -1,18 +1,14 @@
 # Occupancy Grid Map Editor (PySide6 & ROS2)
 
-An interactive, high-performance desktop application for viewing, annotating, and editing robotic occupancy grid maps (PGM/YAML format). The application supports live mapping via ROS 2 SLAM (using service callbacks to pause/resume) and offline manual map corrections.
+An interactive, high-performance desktop application for viewing, annotating, and editing robotic occupancy grid maps (PGM/YAML format). The application supports live mapping via ROS 2 SLAM (slamtoolbox) and offline manual map corrections and annotations.
 
 ---
 
 ## Features
-- **Map Editing Tools**:
-  - `Obstacle` (draws lethal costmap obstacles)
-  - `Free` (draws free space)
-  - `Unknown` (draws unexplored map cells, automatically mapped to standard grayscale `205`/`#CDCDCD`)
-  - `Revert` (erases edits back to the base map)
+- **Map Editing Tools**: edit ocuppancy grid map (overwrite `Obstacle`, `Free` and `Unknown` area).
 - **Overlay Opacity Slider**: Adjust edit transparency on-the-fly without corrupting the raw data output.
-- **ROS 2 Integration**: Subscribes to laser scans, robot transformations, and occupancy grids.
-- **Layer System**: Work on multiple semantic overlay layers.
+- **ROS 2 Integration**: Subscribes to laser scans, robot transformations, and occupancy grid map.
+- **Layer System**: Work on multiple semantic overlay layers (Keepout layer, ...).
 
 ---
 
@@ -66,18 +62,3 @@ If you want to package the application as a standalone executable (distributable
 3. The standalone binary will be generated inside the `dist/` directory.
 
 ---
-
-## Project Structure
-The repository is structured as a standard Python package using `src-layout`:
-```text
-├── src/
-│   └── grid_map_editor/          # Core package
-│       ├── controllers/          # Python PySide6 context properties
-│       ├── resources/
-│       │   ├── qml/              # QML user interface files
-│       │   └── images/           # Window icons and styling assets
-│       └── app.py                # Main application launcher
-├── pyproject.toml                # Build configuration and dependencies
-├── run.sh                        # In-place package runner script
-└── OccupancyGridMapEditor.spec   # PyInstaller packaging configuration
-```
