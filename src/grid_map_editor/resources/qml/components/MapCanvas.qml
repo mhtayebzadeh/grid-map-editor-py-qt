@@ -19,6 +19,37 @@ Rectangle {
     property real mapRotation: 0.0
     property bool isFollowingRobot: false
     property bool isSelectingInitPose: false
+    property bool isTouchPanMode: false
+
+    function zoomIn() {
+        let zoomRatio = 1.1;
+        let newScale = currentScale * zoomRatio;
+        if(newScale > 0.05 && newScale < 50.0) {
+            let cx = viewport.width / 2;
+            let cy = viewport.height / 2;
+            let relX = cx - viewport.panX;
+            let relY = cy - viewport.panY;
+
+            viewport.panX = cx - relX * zoomRatio;
+            viewport.panY = cy - relY * zoomRatio;
+            currentScale = newScale;
+        }
+    }
+
+    function zoomOut() {
+        let zoomRatio = 1 / 1.1;
+        let newScale = currentScale * zoomRatio;
+        if(newScale > 0.05 && newScale < 50.0) {
+            let cx = viewport.width / 2;
+            let cy = viewport.height / 2;
+            let relX = cx - viewport.panX;
+            let relY = cy - viewport.panY;
+
+            viewport.panX = cx - relX * zoomRatio;
+            viewport.panY = cy - relY * zoomRatio;
+            currentScale = newScale;
+        }
+    }
 
     property real mouseMapPxX: 0
     property real mouseMapPxY: 0
@@ -794,9 +825,36 @@ Rectangle {
             }
         }
 
-        MouseArea {
-            id: panZoomArea
+        PinchArea {
+            id: pinchArea
             anchors.fill: parent
+
+            property real initialScale: 1.0
+
+            onPinchStarted: (pinch) => {
+                initialScale = currentScale
+            }
+
+            onPinchUpdated: (pinch) => {
+                let newScale = initialScale * pinch.scale
+                if (newScale > 0.05 && newScale < 50.0) {
+                    let zoomRatio = newScale / currentScale
+                    let cx = pinch.center.x
+                    let cy = pinch.center.y
+                    
+                    let relX = cx - viewport.panX
+                    let relY = cy - viewport.panY
+                    
+                    currentScale = newScale
+                    
+                    viewport.panX = cx - relX * zoomRatio + (pinch.center.x - pinch.previousCenter.x)
+                    viewport.panY = cy - relY * zoomRatio + (pinch.center.y - pinch.previousCenter.y)
+                }
+            }
+
+            MouseArea {
+                id: panZoomArea
+                anchors.fill: parent
             acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
             hoverEnabled: true
             
@@ -825,11 +883,11 @@ Rectangle {
                     return;
                 }
 
-                if (mouse.button === Qt.MiddleButton || (mouse.button === Qt.LeftButton && (mouse.modifiers & Qt.ControlModifier))) {
+                if (mouse.button === Qt.MiddleButton || (mouse.button === Qt.LeftButton && (mouse.modifiers & Qt.ControlModifier)) || (mapCanvasRoot.isTouchPanMode && mouse.button === Qt.LeftButton)) {
                     isFollowingRobot = false
                     lastPanX = mouse.x
                     lastPanY = mouse.y
-                } else if (mouse.button === Qt.LeftButton && (mapController ? mapController.mapWidth : 0) > 0 && !root.editingDisabled) {
+                } else if (mouse.button === Qt.LeftButton && (mapController ? mapController.mapWidth : 0) > 0 && !root.editingDisabled && !mapCanvasRoot.isTouchPanMode) {
                     let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
                     let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
                     
@@ -896,12 +954,12 @@ Rectangle {
             }
 
             onPositionChanged: (mouse) => {
-                if (pressedButtons & Qt.MiddleButton || (pressedButtons & Qt.LeftButton && (mouse.modifiers & Qt.ControlModifier))) {
+                if (pressedButtons & Qt.MiddleButton || (pressedButtons & Qt.LeftButton && (mouse.modifiers & Qt.ControlModifier)) || (mapCanvasRoot.isTouchPanMode && (pressedButtons & Qt.LeftButton))) {
                     viewport.panX += (mouse.x - lastPanX)
                     viewport.panY += (mouse.y - lastPanY)
                     lastPanX = mouse.x
                     lastPanY = mouse.y
-                } else if (isDrawing && (mapController ? mapController.mapWidth : 0) > 0) {
+                } else if (isDrawing && (mapController ? mapController.mapWidth : 0) > 0 && !mapCanvasRoot.isTouchPanMode) {
                     let pt_raw = panZoomArea.mapToItem(mapSpace, mouse.x, mouse.y)
                     let pt = Qt.point(Math.floor(pt_raw.x), Math.floor(pt_raw.y))
                     if (root.activeMode === "layers" && root.activeLayerId !== "" && (root.currentLayerTool === "pencil" || root.currentLayerTool === "eraser")) {
@@ -957,7 +1015,9 @@ Rectangle {
                 if (root.pendingGateModel !== null) return Qt.CrossCursor;
                 if (isDrawing) return Qt.CrossCursor;
                 if (panZoomArea.pressedButtons & Qt.MiddleButton || (panZoomArea.pressedButtons & Qt.LeftButton && (Qt.keyboardModifiers & Qt.ControlModifier))) return Qt.SizeAllCursor;
+                if (mapCanvasRoot.isTouchPanMode) return Qt.OpenHandCursor;
                 return Qt.ArrowCursor;
+            }
             }
         }
     } // viewport
@@ -1048,17 +1108,31 @@ Rectangle {
             id: navToolsPanel
             Layout.alignment: Qt.AlignRight
             isSelectingInitPose: mapCanvasRoot.isSelectingInitPose
+            isTouchPanMode: mapCanvasRoot.isTouchPanMode
             onIsSelectingInitPoseChanged: {
                 if (isSelectingInitPose !== mapCanvasRoot.isSelectingInitPose) {
                     mapCanvasRoot.isSelectingInitPose = isSelectingInitPose
                 }
             }
+            onIsTouchPanModeChanged: {
+                if (isTouchPanMode !== mapCanvasRoot.isTouchPanMode) {
+                    mapCanvasRoot.isTouchPanMode = isTouchPanMode
+                }
+            }
+            onZoomInRequested: mapCanvasRoot.zoomIn()
+            onZoomOutRequested: mapCanvasRoot.zoomOut()
         }
     }
 
     onIsSelectingInitPoseChanged: {
         if (navToolsPanel.isSelectingInitPose !== isSelectingInitPose) {
             navToolsPanel.isSelectingInitPose = isSelectingInitPose
+        }
+    }
+
+    onIsTouchPanModeChanged: {
+        if (navToolsPanel.isTouchPanMode !== isTouchPanMode) {
+            navToolsPanel.isTouchPanMode = isTouchPanMode
         }
     }
 

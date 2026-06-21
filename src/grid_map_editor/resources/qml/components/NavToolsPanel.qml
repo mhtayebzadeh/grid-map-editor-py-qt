@@ -13,6 +13,10 @@ Rectangle {
     visible: false
 
     property bool isSelectingInitPose: false
+    property bool isTouchPanMode: false
+
+    signal zoomInRequested()
+    signal zoomOutRequested()
 
     ColumnLayout {
         id: content
@@ -62,6 +66,87 @@ Rectangle {
                 }
             }
             HoverHandler { cursorShape: Qt.PointingHandCursor }
+        }
+
+        Button {
+            id: touchPanBtn
+            Layout.fillWidth: true
+            height: 50
+            text: root.isTouchPanMode ? "Disable Touch Pan" : "Enable Touch Pan"
+            
+            contentItem: RowLayout {
+                spacing: 5
+                Text {
+                    text: root.isTouchPanMode ? "Disable Touch Pan" : "Enable Touch Pan"
+                    color: "white"
+                    font.pixelSize: 12
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.fillWidth: true
+                }
+            }
+
+            background: Rectangle {
+                color: root.isTouchPanMode ? "#3b82f6" : (parent.hovered ? "#374151" : "#111827")
+                radius: 4
+                border.color: root.isTouchPanMode ? "#60a5fa" : "#374151"
+            }
+
+            onClicked: {
+                root.isTouchPanMode = !root.isTouchPanMode
+            }
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+
+            Button {
+                Layout.fillWidth: true
+                height: 40
+                
+                contentItem: Text {
+                    text: "-"
+                    color: "white"
+                    font.pixelSize: 20
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    color: parent.hovered ? "#374151" : "#111827"
+                    radius: 4
+                    border.color: "#374151"
+                }
+
+                onClicked: root.zoomOutRequested()
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+            }
+
+            Button {
+                Layout.fillWidth: true
+                height: 40
+                
+                contentItem: Text {
+                    text: "+"
+                    color: "white"
+                    font.pixelSize: 20
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    color: parent.hovered ? "#374151" : "#111827"
+                    radius: 4
+                    border.color: "#374151"
+                }
+
+                onClicked: root.zoomInRequested()
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+            }
         }
 
         Text {
