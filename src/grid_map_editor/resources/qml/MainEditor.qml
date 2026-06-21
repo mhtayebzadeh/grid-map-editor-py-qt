@@ -361,7 +361,22 @@ Rectangle {
                 Text { text: "Name *"; color: addGateDialog.gateName.trim() === "" ? "#ef4444" : "#d1d5db"; font.pixelSize: 12 }
                 Rectangle {
                     Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: addGateDialog.gateName.trim() === "" ? "#ef4444" : "#374151"
-                    TextInput { anchors.fill: parent; anchors.margins: 8; color: "white"; font.pixelSize: 13; text: addGateDialog.gateName; onTextChanged: addGateDialog.gateName = text }
+                    TextInput {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        color: "white"
+                        font.pixelSize: 13
+                        text: addGateDialog.gateName
+                        onTextChanged: addGateDialog.gateName = text
+                        selectByMouse: true
+                        onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
+                        HoverHandler { cursorShape: Qt.IBeamCursor }
+                        TapHandler {
+                            onTapped: {
+                                Qt.callLater(function() { Qt.inputMethod.show(); });
+                            }
+                        }
+                    }
                 }
             }
             
@@ -376,14 +391,22 @@ Rectangle {
                         anchors.fill: descriptionRect
                         clip: true
                         TextEdit { 
-                            width: descriptionRect.width - 12
-                            anchors.centerIn: descriptionRect
+                            width: descriptionRect.width
+                            height: Math.max(descriptionRect.height, implicitHeight)
                             padding: 8
-                            color: "white"; font.pixelSize: 13; 
-                            text: addGateDialog.gateDesc; 
+                            color: "white"
+                            font.pixelSize: 13
+                            text: addGateDialog.gateDesc
                             onTextChanged: addGateDialog.gateDesc = text
                             wrapMode: Text.Wrap
                             selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
                 }
@@ -398,9 +421,15 @@ Rectangle {
                     Rectangle {
                         Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#374151"
                         TextInput { 
-                            anchors.fill: parent; anchors.margins: 8; color: "white"; font.pixelSize: 13; 
-                            text: addGateDialog.gateImage; 
-                            readOnly: true; clip: true; 
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            color: "white"
+                            font.pixelSize: 13
+                            text: addGateDialog.gateImage
+                            readOnly: true
+                            clip: true
+                            selectByMouse: true
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
                         }
                     }
                     Rectangle {
@@ -409,6 +438,7 @@ Rectangle {
                         MouseArea {
                             anchors.fill: parent
                             onClicked: imageFileDialog.open()
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
                         }
                     }
                 }

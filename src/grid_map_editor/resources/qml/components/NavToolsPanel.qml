@@ -61,6 +61,7 @@ Rectangle {
                     statusPanel.addLog("Click on the map to set initial pose. Right-click to cancel.", "info")
                 }
             }
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
 
         Text {

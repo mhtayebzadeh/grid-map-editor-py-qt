@@ -37,7 +37,8 @@ Item {
             padding: 16
 
             ColumnLayout {
-                width: parent.width - 32
+                anchors.left: parent.left
+                anchors.right: parent.right
                 spacing: 12
 
 
@@ -51,9 +52,10 @@ Item {
                 Rectangle { 
                     Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#1f2937"
                     clip: true
-                    TextEdit { 
+                    TextInput { 
                         anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                         text: root.projectName; color: "#e4e4e7"; font.pixelSize: 13; readOnly: true; selectByMouse: true; selectionColor: "#2563eb"
+                        HoverHandler { cursorShape: Qt.IBeamCursor }
                     }
                 }
             }
@@ -65,9 +67,10 @@ Item {
                 Rectangle { 
                     Layout.fillWidth: true; height: 32; color: "#111827"; radius: 4; border.color: "#1f2937"
                     clip: true
-                    TextEdit { 
+                    TextInput { 
                         anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                         text: root.projectPath; color: "#a1a1aa"; font.pixelSize: 11; readOnly: true; selectByMouse: true; selectionColor: "#2563eb"
+                        HoverHandler { cursorShape: Qt.IBeamCursor }
                     }
                 }
             }
@@ -100,10 +103,20 @@ Item {
                             opacity: root.isSlamMode ? 1.0 : 0.4
                             
                             RowLayout {
+                                width: parent.width - 12
                                 anchors.centerIn: parent
-                                spacing: 8
+                                spacing: 6
                                 Rectangle { width: 8; height: 8; radius: 4; color: root.isMappingActive ? "white" : "#4b5563"; opacity: root.isMappingActive ? 1.0 : 0.5; visible: root.isSlamMode }
-                                Text { text: "Mapping (SLAM)"; color: "white"; font.bold: root.isMappingActive; font.pixelSize: 13 }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: "Mapping (SLAM)"
+                                    color: "white"
+                                    font.bold: root.isMappingActive
+                                    font.pixelSize: 13
+                                    horizontalAlignment: Text.AlignHCenter
+                                    fontSizeMode: Text.HorizontalFit
+                                    minimumPixelSize: 10
+                                }
                             }
                             
                             MouseArea {
@@ -125,11 +138,15 @@ Item {
                             radius: 6
                             
                             Text { 
+                                width: parent.width - 12
                                 anchors.centerIn: parent
-                                text: "Map Editing" 
+                                text: "Map Edit" 
                                 color: "white" 
                                 font.bold: !root.isMappingActive 
                                 font.pixelSize: 13 
+                                horizontalAlignment: Text.AlignHCenter
+                                fontSizeMode: Text.HorizontalFit
+                                minimumPixelSize: 10
                             }
                             
                             MouseArea {
@@ -224,7 +241,14 @@ Item {
                             TextInput { 
                                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                                 text: root.scanTopic; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                 onEditingFinished: projectManager.scanTopic = text
+                                HoverHandler { cursorShape: Qt.IBeamCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                    }
+                                }
                             }
                         }
                     }
@@ -239,8 +263,14 @@ Item {
                             TextInput { 
                                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                                 text: root.mapTopic; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                 onEditingFinished: projectManager.mapTopic = text
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                    }
+                                }
                             }
                         }
                     }
@@ -255,8 +285,14 @@ Item {
                             TextInput { 
                                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                                 text: root.tfTopic; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                 onEditingFinished: projectManager.tfTopic = text
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                    }
+                                }
                             }
                         }
                     }
@@ -271,8 +307,14 @@ Item {
                             TextInput { 
                                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                                 text: root.robotFrame; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                 onEditingFinished: projectManager.robotFrame = text
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                    }
+                                }
                             }
                         }
                     }
@@ -287,8 +329,14 @@ Item {
                             TextInput { 
                                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                                 text: root.resetMapServiceName; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                 onEditingFinished: projectManager.resetMapServiceName = text
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                    }
+                                }
                             }
                         }
                     }
@@ -303,8 +351,14 @@ Item {
                             TextInput { 
                                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                                 text: root.resetMapServiceType; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                 onEditingFinished: projectManager.resetMapServiceType = text
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                    }
+                                }
                             }
                         }
                     }
@@ -319,8 +373,14 @@ Item {
                             TextInput { 
                                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                                 text: root.pauseMappingServiceName; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                 onEditingFinished: projectManager.pauseMappingServiceName = text
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                    }
+                                }
                             }
                         }
                     }
@@ -335,8 +395,14 @@ Item {
                             TextInput { 
                                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 8
                                 text: root.pauseMappingServiceType; color: "#e4e4e7"; font.pixelSize: 12; selectByMouse: true; selectionColor: "#2563eb"
+                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                 onEditingFinished: projectManager.pauseMappingServiceType = text
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                    }
+                                }
                             }
                         }
                     }
@@ -348,29 +414,62 @@ Item {
             CheckBox {
                 id: autoSaveCb
                 text: "Auto-save changes (Every 60s)"
+                Layout.fillWidth: true
                 checked: true
-                contentItem: Text { text: parent.text; color: "#d1d5db"; font.pixelSize: 13; leftPadding: autoSaveCb.indicator.width + parent.spacing; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#d1d5db"
+                    font.pixelSize: 13
+                    leftPadding: autoSaveCb.indicator.width + parent.spacing
+                    verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.Wrap
+                }
             }
             
             CheckBox {
                 id: showRobotCb
                 text: "Show Robot Position"
+                Layout.fillWidth: true
                 checked: true
-                contentItem: Text { text: parent.text; color: "#d1d5db"; font.pixelSize: 13; leftPadding: showRobotCb.indicator.width + parent.spacing; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#d1d5db"
+                    font.pixelSize: 13
+                    leftPadding: showRobotCb.indicator.width + parent.spacing
+                    verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.Wrap
+                }
             }
 
             CheckBox {
                 id: showLaserScanCb
                 text: "Show Laser Scan"
+                Layout.fillWidth: true
                 checked: true
-                contentItem: Text { text: parent.text; color: "#d1d5db"; font.pixelSize: 13; leftPadding: showLaserScanCb.indicator.width + parent.spacing; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#d1d5db"
+                    font.pixelSize: 13
+                    leftPadding: showLaserScanCb.indicator.width + parent.spacing
+                    verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.Wrap
+                }
             }
 
             CheckBox {
                 id: safetyLockCb
                 text: "Editing Safety Lock (Disable edit in Mapping)"
+                Layout.fillWidth: true
                 checked: true
-                contentItem: Text { text: parent.text; color: "#ef4444"; font.pixelSize: 13; font.bold: true; leftPadding: safetyLockCb.indicator.width + parent.spacing; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#ef4444"
+                    font.pixelSize: 13
+                    font.bold: true
+                    leftPadding: safetyLockCb.indicator.width + parent.spacing
+                    verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.Wrap
+                }
             }
 
             Item { Layout.fillHeight: true; Layout.minimumHeight: 20 }

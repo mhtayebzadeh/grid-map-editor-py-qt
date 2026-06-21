@@ -172,7 +172,15 @@ Rectangle {
                             color: "white"
                             font.pixelSize: 13
                             padding: 8
+                            selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
 
@@ -187,7 +195,15 @@ Rectangle {
                             color: "white"
                             font.pixelSize: 13
                             padding: 8
+                            selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
 
@@ -203,7 +219,14 @@ Rectangle {
                             font.pixelSize: 13
                             padding: 8
                             selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
 
@@ -218,7 +241,15 @@ Rectangle {
                             color: "white"
                             font.pixelSize: 13
                             padding: 8
+                            selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
 
@@ -234,7 +265,15 @@ Rectangle {
                             color: "white"
                             font.pixelSize: 13
                             padding: 8
+                            selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
 
@@ -251,7 +290,15 @@ Rectangle {
                             font.pixelSize: 13
                             padding: 8
                             validator: DoubleValidator { bottom: 0.1; top: 10.0 }
+                            selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
 
@@ -280,7 +327,15 @@ Rectangle {
                             color: "white"
                             font.pixelSize: 13
                             padding: 8
+                            selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
 
@@ -295,7 +350,15 @@ Rectangle {
                             color: "white"
                             font.pixelSize: 13
                             padding: 8
+                            selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
 
@@ -310,7 +373,15 @@ Rectangle {
                             color: "white"
                             font.pixelSize: 13
                             padding: 8
+                            selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
 
@@ -325,7 +396,15 @@ Rectangle {
                             color: "white"
                             font.pixelSize: 13
                             padding: 8
+                            selectByMouse: true
+                            onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                             background: Rectangle { color: "#111827"; radius: 4; border.color: "#38404a" }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            TapHandler {
+                                onTapped: {
+                                    Qt.callLater(function() { Qt.inputMethod.show(); });
+                                }
+                            }
                         }
                     }
                 }
@@ -363,7 +442,9 @@ Rectangle {
                 Rectangle {
                     width: 40; height: 40; color: "#252b32"; radius: 4
                     Text { anchors.centerIn: parent; text: "⚙\uFE0F"; font.pixelSize: 20; color: "white" }
-                    MouseArea { anchors.fill: parent; onClicked: rosConfigPopup.open() }
+                    MouseArea { anchors.fill: parent; onClicked: rosConfigPopup.open();
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            }
                 }
             }
 
@@ -383,7 +464,9 @@ Rectangle {
                         color: !root.isEditMode ? "#2e6bf0" : "transparent"
                         radius: 4
                         Text { anchors.centerIn: parent; text: "SLAM MODE"; color: "white"; font.bold: true; font.pixelSize: 13 }
-                        MouseArea { anchors.fill: parent; onClicked: root.isEditMode = false }
+                        MouseArea { anchors.fill: parent; onClicked: root.isEditMode = false;
+                            HoverHandler { cursorShape: Qt.PointingHandCursor } 
+                            }
                     }
                     Rectangle {
                         Layout.fillWidth: true
@@ -391,8 +474,11 @@ Rectangle {
                         color: root.isEditMode ? "#2e6bf0" : "transparent"
                         radius: 4
                         Text { anchors.centerIn: parent; text: "MAP EDIT MODE"; color: "white"; font.bold: true; font.pixelSize: 13 }
-                        MouseArea { anchors.fill: parent; onClicked: root.isEditMode = true }
+                        MouseArea { anchors.fill: parent; onClicked: root.isEditMode = true; 
+                            HoverHandler { cursorShape: Qt.PointingHandCursor } 
+                            }
                     }
+                    
                 }
             }
 
@@ -446,7 +532,15 @@ Rectangle {
                                     placeholderText: "e.g. MySlamProject"
                                     color: "white"
                                     font.pixelSize: 13
+                                    selectByMouse: true
+                                    onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                     background: Rectangle { color: "#1a1e24"; radius: 4; border.color: "#38404a" }
+                                    HoverHandler { cursorShape: Qt.IBeamCursor }
+                                    TapHandler {
+                                        onTapped: {
+                                            Qt.callLater(function() { Qt.inputMethod.show(); });
+                                        }
+                                    }
                                 }
                             }
 
@@ -476,6 +570,7 @@ Rectangle {
                                     
                                     slamFolderDialog.open()
                                 }
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
                             }
                         }
                     }
@@ -564,8 +659,15 @@ Rectangle {
                                     placeholderText: "e.g. MyProject"
                                     color: "white"
                                     font.pixelSize: 13
+                                    selectByMouse: true
+                                    onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                     background: Rectangle { color: "#1a1e24"; radius: 4; border.color: "#38404a" }
                                     HoverHandler { cursorShape: Qt.IBeamCursor }
+                                    TapHandler {
+                                        onTapped: {
+                                            Qt.callLater(function() { Qt.inputMethod.show(); });
+                                        }
+                                    }
                                 }
                             }
 
@@ -580,8 +682,15 @@ Rectangle {
                                         placeholderText: "Select .pgm file..."
                                         color: "white"
                                         font.pixelSize: 12
+                                        selectByMouse: true
+                                        onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                         background: Rectangle { color: "#1a1e24"; radius: 4; border.color: "#38404a" }
                                         HoverHandler { cursorShape: Qt.IBeamCursor }
+                                        TapHandler {
+                                            onTapped: {
+                                                Qt.callLater(function() { Qt.inputMethod.show(); });
+                                            }
+                                        }
                                     }
                                     Button {
                                         text: "Browse"
@@ -604,13 +713,22 @@ Rectangle {
                                         placeholderText: "Select .yaml file..."
                                         color: "white"
                                         font.pixelSize: 12
+                                        selectByMouse: true
+                                        onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                         background: Rectangle { color: "#1a1e24"; radius: 4; border.color: "#38404a" }
+                                        HoverHandler { cursorShape: Qt.IBeamCursor }
+                                        TapHandler {
+                                            onTapped: {
+                                                Qt.callLater(function() { Qt.inputMethod.show(); });
+                                            }
+                                        }
                                     }
                                     Button {
                                         text: "Browse"
                                         palette.buttonText: "white"
                                         background: Rectangle { color: "#374151"; radius: 4 }
                                         onClicked: yamlFileDialog.open()
+                                        HoverHandler { cursorShape: Qt.PointingHandCursor }
                                     }
                                 }
                             }
@@ -625,7 +743,15 @@ Rectangle {
                                     text: "0.05"
                                     color: "white"
                                     font.pixelSize: 13
+                                    selectByMouse: true
+                                    onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                     background: Rectangle { color: "#1a1e24"; radius: 4; border.color: "#38404a" }
+                                    HoverHandler { cursorShape: Qt.IBeamCursor }
+                                    TapHandler {
+                                        onTapped: {
+                                            Qt.callLater(function() { Qt.inputMethod.show(); });
+                                        }
+                                    }
                                 }
                             }
 
@@ -646,6 +772,7 @@ Rectangle {
                                     }
                                     folderDialog.open()
                                 }
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
                             }
                         }
                     }
@@ -691,6 +818,7 @@ Rectangle {
                                 palette.buttonText: "white"
                                 background: Rectangle { color: "#2e6bf0"; radius: 4 }
                                 onClicked: meproFileDialog.open()
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
                             }
                         }
                     }

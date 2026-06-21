@@ -143,8 +143,15 @@ Item {
                             // Name Edit
                             TextInput { 
                                 text: model.name; color: "white"; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true 
+                                selectByMouse: true
+                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                 onEditingFinished: layersModel.setProperty(index, "name", text)
                                 HoverHandler { cursorShape: Qt.IBeamCursor }
+                                TapHandler {
+                                    onTapped: {
+                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                    }
+                                }
                             }
                             
                             // Delete

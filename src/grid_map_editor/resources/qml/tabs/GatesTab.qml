@@ -114,7 +114,11 @@ Item {
                             border.width: 1
 
                             MouseArea {
-                                anchors.fill: parent
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                height: 40
+                                cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     if (root.activeGateId === model.gateId) root.activeGateId = "";
                                     else root.activeGateId = model.gateId;
@@ -143,8 +147,7 @@ Item {
                                     visible: gateRect.isExpanded
                                     spacing: 8
                                     
-                                    // Swallow clicks so it doesn't trigger collapse
-                                    MouseArea { anchors.fill: parent; onClicked: {} }
+                                    Item { Layout.preferredHeight: 0 }
                                     
                                     RowLayout {
                                         Layout.fillWidth: true
@@ -152,8 +155,13 @@ Item {
                                         Rectangle {
                                             Layout.fillWidth: true; height: 28; color: "#111827"; radius: 4; border.color: model.name.trim() === "" ? "#ef4444" : "#374151"
                                             TextInput {
-                                                anchors.fill: parent; anchors.margins: 6; color: "white"; font.pixelSize: 12
+                                                anchors.fill: parent
+                                                anchors.margins: 6
+                                                color: "white"
+                                                font.pixelSize: 12
                                                 text: model.name
+                                                selectByMouse: true
+                                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                                 onEditingFinished: {
                                                     if (text.trim() === "") {
                                                         text = model.name; // revert UI
@@ -163,6 +171,12 @@ Item {
                                                     let newPath = projectManager.copyGateImage(model.imageFile, categoryDelegate.catId, text, model.gateId, model.imageFile);
                                                     if (newPath !== model.imageFile) {
                                                         categoryDelegate.catModel.setProperty(gateRect.gateIndex, "imageFile", newPath);
+                                                    }
+                                                }
+                                                HoverHandler { cursorShape: Qt.IBeamCursor }
+                                                TapHandler {
+                                                    onTapped: {
+                                                        Qt.callLater(function() { Qt.inputMethod.show(); });
                                                     }
                                                 }
                                             }
@@ -175,20 +189,42 @@ Item {
                                         Rectangle {
                                             Layout.fillWidth: true; height: 28; color: "#111827"; radius: 4; border.color: "#374151"
                                             TextInput {
-                                                anchors.fill: parent; anchors.margins: 6; color: "white"; font.pixelSize: 12
+                                                anchors.fill: parent
+                                                anchors.margins: 6
+                                                color: "white"
+                                                font.pixelSize: 12
                                                 text: Number(model.xPos).toFixed(2)
                                                 validator: DoubleValidator {}
+                                                selectByMouse: true
+                                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                                 onEditingFinished: categoryDelegate.catModel.setProperty(gateRect.gateIndex, "xPos", parseFloat(text) || 0.0)
+                                                HoverHandler { cursorShape: Qt.IBeamCursor }
+                                                TapHandler {
+                                                    onTapped: {
+                                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                                    }
+                                                }
                                             }
                                         }
                                         Text { text: "Y (m)"; color: "#9ca3af"; font.pixelSize: 11 }
                                         Rectangle {
                                             Layout.fillWidth: true; height: 28; color: "#111827"; radius: 4; border.color: "#374151"
                                             TextInput {
-                                                anchors.fill: parent; anchors.margins: 6; color: "white"; font.pixelSize: 12
+                                                anchors.fill: parent
+                                                anchors.margins: 6
+                                                color: "white"
+                                                font.pixelSize: 12
                                                 text: Number(model.yPos).toFixed(2)
                                                 validator: DoubleValidator {}
+                                                selectByMouse: true
+                                                onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show(); }
                                                 onEditingFinished: categoryDelegate.catModel.setProperty(gateRect.gateIndex, "yPos", parseFloat(text) || 0.0)
+                                                HoverHandler { cursorShape: Qt.IBeamCursor }
+                                                TapHandler {
+                                                    onTapped: {
+                                                        Qt.callLater(function() { Qt.inputMethod.show(); });
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -203,18 +239,27 @@ Item {
                                                 anchors.fill: descRect
                                                 clip: true
                                                 TextEdit {
-                                                    width: descRect.width - 16
-                                                    anchors.centerIn: descRect
+                                                    width: descRect.width
+                                                    height: Math.max(descRect.height, implicitHeight)
                                                     padding: 8
-                                                    color: "white"; font.pixelSize: 12
+                                                    color: "white"
+                                                    font.pixelSize: 12
                                                     text: model.description
                                                     wrapMode: Text.Wrap
                                                     selectByMouse: true
                                                     onActiveFocusChanged: {
-                                                        if (!activeFocus) {
+                                                        if (activeFocus) {
+                                                            Qt.inputMethod.show();
+                                                        } else {
                                                             categoryDelegate.catModel.setProperty(gateRect.gateIndex, "description", text)
                                                         }
                                                     }
+                                                        HoverHandler { cursorShape: Qt.IBeamCursor }
+                                                        TapHandler {
+                                                            onTapped: {
+                                                                Qt.callLater(function() { Qt.inputMethod.show(); });
+                                                            }
+                                                        }
                                                 }
                                             }
                                         }
@@ -228,9 +273,15 @@ Item {
                                             Rectangle {
                                                 Layout.fillWidth: true; height: 28; color: "#111827"; radius: 4; border.color: "#374151"
                                                 TextInput {
-                                                    anchors.fill: parent; anchors.margins: 6; color: "white"; font.pixelSize: 12
+                                                    anchors.fill: parent
+                                                    anchors.margins: 6
+                                                    color: "white"
+                                                    font.pixelSize: 12
                                                     text: model.imageFile
-                                                    readOnly: true; clip: true
+                                                    readOnly: true
+                                                    clip: true
+                                                    selectByMouse: true
+                                                    HoverHandler { cursorShape: Qt.IBeamCursor }
                                                 }
                                             }
                                             Rectangle {
@@ -244,6 +295,7 @@ Item {
                                                         editImageFileDialog.catId = categoryDelegate.catId;
                                                         editImageFileDialog.open();
                                                     }
+                                                    HoverHandler { cursorShape: Qt.PointingHandCursor }
                                                 }
                                             }
                                         }
