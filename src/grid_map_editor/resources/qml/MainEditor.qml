@@ -41,6 +41,7 @@ Rectangle {
     property string resetMapServiceType: (projectManager && projectManager.isLoaded) ? projectManager.resetMapServiceType : slamResetMapServiceType
     property string pauseMappingServiceName: (projectManager && projectManager.isLoaded) ? projectManager.pauseMappingServiceName : slamPauseMappingServiceName
     property string pauseMappingServiceType: (projectManager && projectManager.isLoaded) ? projectManager.pauseMappingServiceType : slamPauseMappingServiceType
+    property bool resetPending: root.isSlamMode && (projectManager && projectManager.getOriginalMap() === "")
 
     // Global UI State
     property string activeMode: "project" // "project", "map-edit", "layers", "gates"
@@ -288,6 +289,17 @@ Rectangle {
             if (projectManager.isLoaded) {
                 console.log("ROS topics updated: Map=" + projectManager.mapTopic + " Scan=" + projectManager.scanTopic)
                 robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame);
+            }
+        }
+    }
+
+    Connections {
+        target: robotHandler
+        function onStatusChanged() {
+            if (robotHandler.isConnected && root.resetPending) {
+                root.resetPending = false
+                console.log("SLAM Connection established. Resetting map via service: " + root.resetMapServiceName + " (" + root.resetMapServiceType + ")")
+                robotHandler.call_service_async(root.resetMapServiceName, root.resetMapServiceType)
             }
         }
     }

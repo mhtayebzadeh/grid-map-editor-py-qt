@@ -474,12 +474,6 @@ Rectangle {
                                         return
                                     }
                                     
-                                    // If in SLAM mode (not Edit mode), reset the map
-                                    if (!root.isEditMode) {
-                                        console.log("Starting new SLAM project, resetting map via service: " + slamResetMapServiceNameField.text)
-                                        robotHandler.call_service_async(slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text)
-                                    }
-                                    
                                     slamFolderDialog.open()
                                 }
                             }
