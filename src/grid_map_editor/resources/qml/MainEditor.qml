@@ -144,14 +144,15 @@ Rectangle {
                             "colorStr": layers[i].colorStr,
                             "opacity": layers[i].opacity,
                             "layerVisible": layers[i].visible,
-                            "filePath": layers[i].file || ""
+                            "filePath": layers[i].file || "",
+                            "yamlPath": layers[i].yaml || ""
                         });
                     }
                 } else {
-                    layersModel.append({ "layerId": "layer_" + Date.now(), "name": "Keepout", "colorStr": "#ef4444", "opacity": 0.70, "layerVisible": true, "filePath": "" });
+                    layersModel.append({ "layerId": "layer_" + Date.now(), "name": "Keepout", "colorStr": "#ef4444", "opacity": 0.70, "layerVisible": true, "filePath": "", "yamlPath": "" });
                 }
             } else {
-                layersModel.append({ "layerId": "layer_" + Date.now(), "name": "Keepout", "colorStr": "#ef4444", "opacity": 0.70, "layerVisible": true, "filePath": "" });
+                layersModel.append({ "layerId": "layer_" + Date.now(), "name": "Keepout", "colorStr": "#ef4444", "opacity": 0.70, "layerVisible": true, "filePath": "", "yamlPath": "" });
             }
             root.activeLayerId = layersModel.count > 0 ? layersModel.get(0).layerId : "";
             root.editLayerPath = projectManager ? projectManager.getEditedOverlay() : "";
@@ -217,7 +218,9 @@ Rectangle {
                 "colorStr": layer.colorStr,
                 "opacity": layer.opacity,
                 "visible": layer.layerVisible,
-                "b64": b64
+                "b64": b64,
+                "file": layer.filePath ? layer.filePath.split("/").pop() : "",
+                "yaml": layer.yamlPath ? layer.yamlPath.split("/").pop() : ""
             });
         }
         mapController.saveProjectFull(layerMetaList);

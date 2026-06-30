@@ -359,6 +359,8 @@ class MapController(QObject):
             layerId = layer_data.get('layerId', '')
             name = layer_data.get('name', 'Layer')
             b64 = layer_data.get('b64', '')
+            existing_file = layer_data.get('file', '')
+            existing_yaml = layer_data.get('yaml', '')
             
             # Record metadata
             layer_meta = {
@@ -367,7 +369,8 @@ class MapController(QObject):
                 "colorStr": layer_data.get('colorStr', ''),
                 "opacity": layer_data.get('opacity', 1.0),
                 "visible": layer_data.get('visible', True),
-                "file": ""
+                "file": existing_file,
+                "yaml": existing_yaml
             }
             
             if b64 and layerId:
@@ -400,21 +403,44 @@ class MapController(QObject):
                     l_img.save(str(out_path))
                     layer_meta["file"] = out_path.name
                     print(f"Saved layer '{name}' to {out_path}")
+                    
+                    # Save YAML file for this layer
+                    yaml_path = out_path.with_suffix('.yaml')
+                    layer_yaml_data = {
+                        "image": out_path.name,
+                        "resolution": self._resolution,
+                        "origin": self._origin if self._origin else [0.0, 0.0, 0.0],
+                        "negate": 0,
+                        "occupied_thresh": 0.65,
+                        "free_thresh": 0.196
+                    }
+                    with open(yaml_path, 'w') as f:
+                        yaml.dump(layer_yaml_data, f, default_flow_style=False)
+                    layer_meta["yaml"] = yaml_path.name
+                    print(f"Saved layer YAML for '{name}' to {yaml_path}")
                 except Exception as e:
                     print(f"Failed to save layer {layerId}: {e}")
             
             saved_layers_meta.append(layer_meta)
             
-        # Cleanup: Delete any .pgm files that are no longer in the layers list
-        # (Excluding special files: original_map.pgm, merged_map.pgm)
+        # Cleanup: Delete any .pgm and .yaml files that are no longer in the layers list
+        # (Excluding special files: original_map.pgm, merged_map.pgm, original_map.yaml, merged_map.yaml, and gates_list.yaml)
         try:
-            active_filenames = [Path(m["file"]).name for m in saved_layers_meta if m.get("file")]
-            special_files = ["original_map.pgm", "merged_map.pgm"]
+            active_pgm_filenames = [Path(m["file"]).name for m in saved_layers_meta if m.get("file")]
+            active_yaml_filenames = [Path(m["yaml"]).name for m in saved_layers_meta if m.get("yaml")]
+            special_pgm_files = ["original_map.pgm", "merged_map.pgm"]
+            special_yaml_files = ["original_map.yaml", "merged_map.yaml"]
+            gates_yaml = getattr(self._project_manager, '_gates_yaml', 'gates_list.yaml')
             
             for pgm_file in project_dir.glob("*.pgm"):
-                if pgm_file.name not in active_filenames and pgm_file.name not in special_files:
+                if pgm_file.name not in active_pgm_filenames and pgm_file.name not in special_pgm_files:
                     print(f"Deleting removed layer file: {pgm_file}")
                     pgm_file.unlink()
+                    
+            for yaml_file in project_dir.glob("*.yaml"):
+                if yaml_file.name not in active_yaml_filenames and yaml_file.name not in special_yaml_files and yaml_file.name != gates_yaml:
+                    print(f"Deleting removed layer yaml file: {yaml_file}")
+                    yaml_file.unlink()
         except Exception as e:
             print(f"Error during layer file cleanup: {e}")
             

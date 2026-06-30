@@ -276,6 +276,10 @@ class ProjectManager(QObject):
                 p = Path(l["file"])
                 if not p.is_absolute():
                     l["file"] = str(Path(self._project_path) / p)
+            if l.get("yaml"):
+                p = Path(l["yaml"])
+                if not p.is_absolute():
+                    l["yaml"] = str(Path(self._project_path) / p)
             resolved.append(l)
         return resolved
         
