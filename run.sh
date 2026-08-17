@@ -1,6 +1,14 @@
 #!/bin/bash
-# Set PYTHONPATH to include the src folder so we can import grid_map_editor
-export PYTHONPATH=src
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# Run the grid_map_editor package as a module, passing along any arguments
-python3 -m grid_map_editor "$@"
+if [ -n "$VIRTUAL_ENV" ]; then
+    PYTHON_EXEC="$VIRTUAL_ENV/bin/python3"
+elif [ -f "$SCRIPT_DIR/.venv/bin/python3" ]; then
+    PYTHON_EXEC="$SCRIPT_DIR/.venv/bin/python3"
+else
+    PYTHON_EXEC="python3"
+fi
+
+export PYTHONPATH="$SCRIPT_DIR/src:$PYTHONPATH"
+exec "$PYTHON_EXEC" -m grid_map_editor "$@"
