@@ -48,6 +48,18 @@ grid-map-editor
 
 ---
 
+## Ubuntu package (.deb)
+
+Download `grid-map-editor_<version>_amd64.deb` from the repository's **Releases** page and install it (Ubuntu 22.04 or newer):
+```bash
+sudo apt install ./grid-map-editor_<version>_amd64.deb
+```
+(Double-clicking the file opens it in the App Center, which also works.) `apt` installs the few system libraries Qt needs. The app then appears in the applications menu as **Grid Map Editor**; right-click it for **Safe graphics mode (no GPU)**. From a terminal: `grid-map-editor`. Uninstall: `sudo apt remove grid-map-editor`.
+
+Build it locally with `linux/build_deb.sh` (output: `dist-installer/`). A package built on a newer Ubuntu only runs on that version or newer; the GitHub workflow builds on 22.04.
+
+---
+
 ## Windows
 
 ### Installer (recommended, nothing else needed)
@@ -87,8 +99,8 @@ pyinstaller OccupancyGridMapEditor.spec
 ```
 Output: `dist/GridMapEditor/` (run `GridMapEditor` / `GridMapEditor.exe` inside it).
 
-### Windows installer
-- **GitHub Actions:** `.github/workflows/windows-installer.yml` builds the installer on every push to `main` (download it from the run's *Artifacts*). To release, bump `__version__` in `src/grid_map_editor/__init__.py`, commit, and push a matching tag such as `v0.1.0`; the installer is then published as a GitHub Release.
+### Installers (Windows .exe and Ubuntu .deb)
+- **GitHub Actions:** `.github/workflows/installers.yml` builds both installers on every push to `main`, installs and starts each one as a smoke test, and uploads them as the run's *Artifacts*. To release, bump `__version__` in `src/grid_map_editor/__init__.py`, commit, and push a matching tag such as `v0.2.0`; both installers are then published as a GitHub Release.
 - **Locally:** install Python 3.10–3.13 and [Inno Setup 6.3+](https://jrsoftware.org/isdl.php), then double-click `windows\build.bat`. Output: `dist-installer\GridMapEditor-Setup-<version>.exe`.
 
 ---

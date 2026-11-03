@@ -70,6 +70,8 @@ def main():
     app.setOrganizationDomain("mapeditor.org")
     app.setApplicationName("OccupancyGridMapEditor")
     app.setApplicationVersion(__version__)
+    # Links the window to grid-map-editor.desktop (dock icon on GNOME/Wayland)
+    app.setDesktopFileName("grid-map-editor")
 
     # Resolve resource paths relative to the package installation directory
     package_dir = Path(__file__).resolve().parent

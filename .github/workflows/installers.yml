@@ -1,0 +1,127 @@
+name: Installers
+
+# Builds GridMapEditor-Setup-<version>.exe (Windows) and grid-map-editor_<version>_amd64.deb
+# (Ubuntu) on every push to main. Version comes from __version__ in
+# src/grid_map_editor/__init__.py. Push a matching tag (e.g. "v0.1.0") to also publish
+# both installers as a GitHub Release.
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Determine version
+        id: version
+        run: |
+          v=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/grid_map_editor/__init__.py)
+          [ -n "$v" ] || { echo "__version__ not found"; exit 1; }
+          if [[ "$GITHUB_REF" == refs/tags/v* ]] && [ "${GITHUB_REF_NAME#v}" != "$v" ]; then
+            echo "Tag version ${GITHUB_REF_NAME#v} does not match __version__ ($v)"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Inno Setup
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Build installer
+        run: ./windows/build.ps1 -Version "${{ needs.version.outputs.version }}"
+
+      - name: Smoke test (bundled app starts without errors)
+        run: |
+          $exe = "build/pyinstaller/dist/GridMapEditor/GridMapEditor.exe"
+          $p = Start-Process $exe -ArgumentList "--renderer", "cpu" -PassThru
+          Start-Sleep -Seconds 20
+          if ($p.HasExited) {
+            Get-Content "$env:LOCALAPPDATA/GridMapEditor/logs/app.log" -ErrorAction SilentlyContinue
+            throw "GridMapEditor.exe exited early with code $($p.ExitCode)"
+          }
+          Stop-Process -Id $p.Id -Force
+          Get-Content "$env:LOCALAPPDATA/GridMapEditor/logs/app.log" -ErrorAction SilentlyContinue
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist-installer/*.exe
+          if-no-files-found: error
+
+      - name: Test install.bat (install from source)
+        shell: cmd
+        run: |
+          echo.| call install.bat
+          if errorlevel 1 exit /b 1
+          .venv\Scripts\python.exe -X utf8 -c "import grid_map_editor.app; print('import OK')"
+
+  linux:
+    needs: version
+    # Oldest supported Ubuntu: the package runs on this glibc version and newer
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build .deb
+        run: PYTHON=python linux/build_deb.sh "${{ needs.version.outputs.version }}"
+
+      - name: Smoke test (install the .deb and start the app)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ./dist-installer/*.deb xvfb
+          xvfb-run -a timeout 20 grid-map-editor --renderer cpu || code=$?
+          # 124 = still running when the timeout stopped it, i.e. it started fine
+          [ "${code:-0}" = "124" ] || { echo "grid-map-editor exited early with code ${code:-0}"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: dist-installer/*.deb
+          if-no-files-found: error
+
+  release:
+    needs: [version, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ needs.version.outputs.version }}-run${{ github.run_number }}
+          path: dist/*
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

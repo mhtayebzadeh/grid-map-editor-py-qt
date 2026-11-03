@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Grid Map Editor
+Comment=Interactive Occupancy Grid Map Editor
+Exec=grid-map-editor
+Icon=grid-map-editor
+Terminal=false
+Categories=Utility;Development;Graphics;
+StartupWMClass=GridMapEditor
+Actions=safe-graphics;
+
+[Desktop Action safe-graphics]
+Name=Safe graphics mode (no GPU)
+Exec=grid-map-editor --renderer cpu

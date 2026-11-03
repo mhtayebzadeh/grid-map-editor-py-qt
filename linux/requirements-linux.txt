@@ -1,0 +1,3 @@
+# Linux .deb build (linux/build_deb.sh). Same packages as the Windows installer:
+# OpenCV "headless" also avoids opencv-python's bundled Qt5, which clashes with PySide6.
+-r ../windows/requirements-windows.txt
