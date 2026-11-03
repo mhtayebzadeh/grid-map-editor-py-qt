@@ -1,8 +1,8 @@
-# Building the Linux Binary
+# Building the Binary (Linux / Windows)
 
-I have prepared the project for packaging by:
-1.  Updating `main.py` with a `get_resource_path` helper to find QML and images when bundled.
-2.  Creating a `OccupancyGridMapEditor.spec` file that includes all necessary assets.
+`OccupancyGridMapEditor.spec` bundles the `grid_map_editor` package (entry: `src/grid_map_editor/__main__.py`)
+with its QML and image resources at `grid_map_editor/resources`, where `app.py` looks them up.
+For the Windows installer see `windows/build.bat` and the README.
 
 Follow these steps to generate the executable:
 
@@ -20,14 +20,14 @@ pyinstaller OccupancyGridMapEditor.spec
 ```
 
 ### 3. Locate the Binary
-Once the build completes, you will find the standalone executable in the `dist/` directory:
+Once the build completes, you will find the application folder in the `dist/` directory:
 ```bash
-./dist/OccupancyGridMapEditor
+./dist/GridMapEditor/GridMapEditor
 ```
 
 ---
 
 ### Tips for a better build:
-*   **One-File vs One-Dir**: The current spec file is configured for **One-File** mode (a single binary). If you prefer a faster startup and don't mind a folder, you can change the spec file or use `pyinstaller --onedir main.py`.
-*   **UPX Compression**: If you have `upx` installed on your system, PyInstaller will use it to compress the binary further.
-*   **ROS2 Dependencies**: If you encounter errors related to `rclpy` during the build, you may need to exclude it in the spec file (`excludes=['rclpy']`) and ensure the user has ROS2 installed on their system to run those features.
+*   **One-Dir**: The spec builds a folder instead of a single file: a one-file build unpacks ~150 MB of Qt on every start.
+*   **ROS2**: `rclpy` is excluded from the bundle; ROS 2 features need a ROS 2 installation and are disabled otherwise.
+*   **Unused Qt modules** (WebEngine, 3D, Multimedia, ...) are excluded in the spec to keep the bundle small.

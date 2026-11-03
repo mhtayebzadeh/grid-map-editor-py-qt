@@ -841,7 +841,7 @@ Rectangle {
         currentFolder: folderSettings.lastSlamFolder !== "" ? folderSettings.lastSlamFolder : StandardPaths.writableLocation(StandardPaths.HomeLocation)
         onAccepted: {
             folderSettings.lastSlamFolder = currentFolder
-            if(projectManager.createProject(slamProjNameField.text, currentFolder.toString(), "", "", "0.05", slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
+            if(projectManager.createProject(slamProjNameField.text, pathHelper.toLocalPath(currentFolder), "", "", "0.05", slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
                 root.startEditor(true, projectManager.projectName, projectManager.projectPath, "", "", "0.05", projectManager.mapTopic, projectManager.scanTopic, projectManager.tfTopic, projectManager.robotFrame, slamUseSimTimeCheck.checked, slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text, slamPauseMappingServiceNameField.text, slamPauseMappingServiceTypeField.text)
             }
         }
@@ -854,7 +854,7 @@ Rectangle {
         currentFolder: folderSettings.lastMapFolder !== "" ? folderSettings.lastMapFolder : StandardPaths.writableLocation(StandardPaths.HomeLocation)
         onAccepted: {
             folderSettings.lastMapFolder = currentFolder
-            mapPathField.text = selectedFile.toString().replace("file://", "")
+            mapPathField.text = pathHelper.toLocalPath(selectedFile)
         }
     }
 
@@ -865,7 +865,7 @@ Rectangle {
         currentFolder: folderSettings.lastYamlFolder !== "" ? folderSettings.lastYamlFolder : StandardPaths.writableLocation(StandardPaths.HomeLocation)
         onAccepted: {
             folderSettings.lastYamlFolder = currentFolder
-            yamlPathField.text = selectedFile.toString().replace("file://", "")
+            yamlPathField.text = pathHelper.toLocalPath(selectedFile)
         }
     }
 
@@ -875,7 +875,7 @@ Rectangle {
         currentFolder: folderSettings.lastProjectSaveFolder !== "" ? folderSettings.lastProjectSaveFolder : StandardPaths.writableLocation(StandardPaths.HomeLocation)
         onAccepted: {
             folderSettings.lastProjectSaveFolder = currentFolder
-            if (projectManager.createProject(projNameField.text, currentFolder.toString(), mapPathField.text, yamlPathField.text, resField.text, slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
+            if (projectManager.createProject(projNameField.text, pathHelper.toLocalPath(currentFolder), mapPathField.text, yamlPathField.text, resField.text, slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text)) {
                 root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked, slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text, slamPauseMappingServiceNameField.text, slamPauseMappingServiceTypeField.text)
             }
         }
@@ -888,7 +888,7 @@ Rectangle {
         currentFolder: folderSettings.lastOpenProjectFolder !== "" ? folderSettings.lastOpenProjectFolder : StandardPaths.writableLocation(StandardPaths.HomeLocation)
         onAccepted: {
             folderSettings.lastOpenProjectFolder = currentFolder
-            if (projectManager.openProject(selectedFile.toString().replace("file://", ""))) {
+            if (projectManager.openProject(pathHelper.toLocalPath(selectedFile))) {
                 root.startEditor(false, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked, slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text, slamPauseMappingServiceNameField.text, slamPauseMappingServiceTypeField.text)
             }
         }
@@ -901,7 +901,7 @@ Rectangle {
         currentFolder: folderSettings.lastOpenProjectFolder !== "" ? folderSettings.lastOpenProjectFolder : StandardPaths.writableLocation(StandardPaths.HomeLocation)
         onAccepted: {
             folderSettings.lastOpenProjectFolder = currentFolder
-            if (projectManager.openProject(selectedFile.toString().replace("file://", ""))) {
+            if (projectManager.openProject(pathHelper.toLocalPath(selectedFile))) {
                 root.startEditor(true, projectManager.projectName, projectManager.projectPath, projectManager.getOriginalMap(), projectManager.getOriginalYaml(), projectManager.getResolution().toString(), slamMapTopicField.text, slamScanTopicField.text, slamTfTopicField.text, slamRobotFrameField.text, slamUseSimTimeCheck.checked, slamResetMapServiceNameField.text, slamResetMapServiceTypeField.text, slamPauseMappingServiceNameField.text, slamPauseMappingServiceTypeField.text)
             }
         }

@@ -75,7 +75,7 @@ Rectangle {
 
     onEditLayerPathChanged: {
         if (editLayerPath && (mapController ? mapController.mapWidth : 0) > 0) {
-            editCanvas.loadImage("file://" + editLayerPath);
+            editCanvas.loadImage(pathHelper.toUrl(editLayerPath));
         }
     }
 
@@ -388,13 +388,13 @@ Rectangle {
                     
                     onImageLoaded: {
                         var ctx = getContext("2d");
-                        ctx.drawImage("file://" + mapCanvasRoot.editLayerPath, 0, 0);
+                        ctx.drawImage(pathHelper.toUrl(mapCanvasRoot.editLayerPath), 0, 0);
                         requestPaint();
                     }
 
                     onAvailableChanged: {
                         if (available && mapCanvasRoot.editLayerPath) {
-                            loadImage("file://" + mapCanvasRoot.editLayerPath);
+                            loadImage(pathHelper.toUrl(mapCanvasRoot.editLayerPath));
                         }
                     }
 
@@ -420,7 +420,7 @@ Rectangle {
 
                         Image {
                             id: layerLoader
-                            source: model.filePath ? "image://map_provider/layer?path=" + model.filePath : ""
+                            source: model.filePath ? "image://map_provider/layer?path=" + encodeURIComponent(model.filePath) : ""
                             visible: false
                             onStatusChanged: {
                                 if (status === Image.Ready && dataCanvas.available) {

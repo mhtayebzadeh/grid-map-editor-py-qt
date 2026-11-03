@@ -1,0 +1,9 @@
+# Windows installer build (windows/build.ps1).
+# Same as ../requirements.txt, but OpenCV "headless": the app only uses image I/O and
+# array ops, and the full package ships extra GUI/video libraries the installer doesn't need.
+PySide6>=6.5.0
+PyYAML>=6.0
+Pillow>=10.0.0
+numpy>=1.20.0
+opencv-python-headless>=4.5.0
+pyinstaller>=6.10

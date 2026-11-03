@@ -1,0 +1,4 @@
+# Windows scripts need CRLF (cmd.exe mis-parses labels/goto with LF line endings)
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.iss text eol=crlf

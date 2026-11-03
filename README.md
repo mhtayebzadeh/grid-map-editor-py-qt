@@ -48,17 +48,47 @@ grid-map-editor
 
 ---
 
-## Standalone Binary Compilation (PyInstaller)
-If you want to package the application as a standalone executable (distributable without requiring Python to be installed on the host machine):
+## Windows
 
-1. Install PyInstaller:
-   ```bash
-   pip install pyinstaller
-   ```
-2. Build the executable using the spec file:
-   ```bash
-   pyinstaller OccupancyGridMapEditor.spec
-   ```
-3. The standalone binary will be generated inside the `dist/` directory.
+### Installer (recommended, nothing else needed)
+Download `GridMapEditor-Setup-<version>.exe` from the repository's **Releases** page and run it. No Python or admin rights are needed (it installs for the current user; "all users" can be chosen in the installer). It adds **Grid Map Editor** to the Start menu and desktop.
+
+The installer is not code-signed, so Windows SmartScreen may show "Windows protected your PC": click **More info → Run anyway**.
+
+### From source
+```bat
+install.bat   :: creates .venv, installs the package, adds a "Grid Map Editor (source)" shortcut
+run.bat       :: runs the app from the source tree
+```
+`install.bat` installs Python 3.12 with `winget` if no Python 3.10+ is found.
+
+ROS 2 features (SLAM mode, live robot pose/scan) need ROS 2 and are disabled on Windows; map editing works fully.
+
+---
+
+## Graphics (GPU and no-GPU PCs)
+The app picks the graphics backend automatically:
+
+| Mode | Renderer | Used when |
+|------|----------|-----------|
+| `hardware` | GPU (Direct3D 11 on Windows, OpenGL on Linux) | Default |
+| `cpu` | Same API on the CPU (Direct3D WARP / Mesa llvmpipe) | GPU fails or crashes |
+| `basic` | Qt Quick software renderer | Last resort |
+
+If the GPU path fails to start (missing driver, VM, Remote Desktop), the app restarts itself in the next mode within the same launch and remembers the working mode. To force a mode: `--renderer hardware|cpu|basic` (or the **Grid Map Editor (Safe graphics mode)** Start menu shortcut, which uses `cpu`). To retry the GPU after a driver update, delete `graphics.json` from `%LOCALAPPDATA%\GridMapEditor` (Linux: `~/.local/state/grid_map_editor`). Logs of the installed app: `%LOCALAPPDATA%\GridMapEditor\logs\app.log`.
+
+---
+
+## Standalone Binary Compilation (PyInstaller)
+Linux or Windows:
+```bash
+pip install pyinstaller -r requirements.txt
+pyinstaller OccupancyGridMapEditor.spec
+```
+Output: `dist/GridMapEditor/` (run `GridMapEditor` / `GridMapEditor.exe` inside it).
+
+### Windows installer
+- **GitHub Actions:** `.github/workflows/windows-installer.yml` builds the installer on every push to `main` (download it from the run's *Artifacts*). To release, bump `__version__` in `src/grid_map_editor/__init__.py`, commit, and push a matching tag such as `v0.1.0`; the installer is then published as a GitHub Release.
+- **Locally:** install Python 3.10–3.13 and [Inno Setup 6.3+](https://jrsoftware.org/isdl.php), then double-click `windows\build.bat`. Output: `dist-installer\GridMapEditor-Setup-<version>.exe`.
 
 ---

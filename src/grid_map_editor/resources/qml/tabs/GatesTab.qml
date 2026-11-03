@@ -20,7 +20,7 @@ Item {
                 let gateName = targetModel.get(targetIndex).name;
                 let gateId = targetModel.get(targetIndex).gateId;
                 let oldImagePath = targetModel.get(targetIndex).imageFile;
-                let newPath = projectManager.copyGateImage(selectedFile.toString(), catId, gateName, gateId, oldImagePath);
+                let newPath = projectManager.copyGateImage(pathHelper.toLocalPath(selectedFile), catId, gateName, gateId, oldImagePath);
                 targetModel.setProperty(targetIndex, "imageFile", newPath);
             }
         }

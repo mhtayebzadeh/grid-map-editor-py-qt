@@ -1,50 +1,65 @@
 # -*- mode: python ; coding: utf-8 -*-
+# PyInstaller spec for Linux and Windows:  pyinstaller OccupancyGridMapEditor.spec
+# Output (one folder, fast startup): dist/GridMapEditor/GridMapEditor[.exe]
+# The Windows installer (windows/installer.iss) packages this folder.
 
-block_cipher = None
+from pathlib import Path
 
-# List of data files to include: (source_path, destination_folder)
-# We copy src/grid_map_editor/resources to grid_map_editor/resources inside the bundle
-# so that dynamic relative path resolution inside app.py works seamlessly.
-added_files = [
-    ('src/grid_map_editor/resources', 'grid_map_editor/resources'),
+ROOT = Path(SPECPATH)
+SRC = ROOT / "src"
+
+# Qt modules the app does not use. PySide6 hooks would otherwise bundle their
+# libraries and QML plugins (hundreds of MB).
+UNUSED_QT = [
+    "Qt3D", "QtQuick3D", "QtWebEngine", "QtWebView", "QtWebChannel", "QtWebSockets",
+    "QtMultimedia", "QtCharts", "QtGraphs", "QtDataVisualization", "QtLocation",
+    "QtPositioning", "QtSensors", "QtBluetooth", "QtNfc", "QtSerialPort", "QtSerialBus",
+    "QtRemoteObjects", "QtScxml", "QtStateMachine", "QtTextToSpeech", "QtVirtualKeyboard",
+    "QtPdf", "QtSpatialAudio", "QtHttpServer", "QtDesigner", "QtUiTools", "QtTest",
+    "QtSql", "QtHelp", "QtNetworkAuth", "QtScxml", "QtQuickTest",
 ]
 
 a = Analysis(
-    ['src/grid_map_editor/app.py'],
-    pathex=[],
+    # Entry is the package's __main__ so "grid_map_editor" imports work in the bundle
+    [str(SRC / "grid_map_editor" / "__main__.py")],
+    pathex=[str(SRC)],
     binaries=[],
-    datas=added_files,
-    hiddenimports=[],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
+    # Resources keep their package-relative location: app.py resolves them from __file__
+    datas=[(str(SRC / "grid_map_editor" / "resources"), "grid_map_editor/resources")],
+    hiddenimports=["grid_map_editor.app"],
+    excludes=["tkinter", "rclpy", "matplotlib", "IPython"]
+    + [f"PySide6.{name}" for name in UNUSED_QT],
     noarchive=False,
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+
+def is_unused_qt(dest: str) -> bool:
+    parts = dest.replace("\\", "/").split("/")
+    return any(part.startswith(name) or part.startswith(f"Qt6{name[2:]}") or part.startswith(f"libQt6{name[2:]}")
+               for part in parts for name in UNUSED_QT)
+
+
+a.binaries = [entry for entry in a.binaries if not is_unused_qt(entry[0])]
+a.datas = [entry for entry in a.datas if not is_unused_qt(entry[0])]
+
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='OccupancyGridMapEditor',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
+    # UTF-8 mode: project/YAML files with Persian names work regardless of Windows locale
+    [("X utf8_mode=1", None, "OPTION")],
+    exclude_binaries=True,
+    name="GridMapEditor",
     console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon='src/grid_map_editor/resources/images/app_icon.ico'
+    icon=str(SRC / "grid_map_editor" / "resources" / "images" / "app_icon.ico"),
+    upx=False,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    name="GridMapEditor",
+    upx=False,
 )

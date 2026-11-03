@@ -13,6 +13,8 @@ from PySide6.QtGui import QImage, QColor
 from PySide6.QtQml import QQmlImageProviderBase
 from PySide6.QtQuick import QQuickImageProvider
 
+from grid_map_editor.paths import imread, imwrite, uri_to_path
+
 class MapImageProvider(QQuickImageProvider):
     def __init__(self):
         super().__init__(QQuickImageProvider.Image)
@@ -99,13 +101,8 @@ class MapController(QObject):
     @Slot(str, str, float)
     def loadMap(self, yaml_uri, pgm_uri, default_resolution):
         # Convert QML file URI to local path
-        def _uri_to_path(uri):
-            if uri.startswith("file://"):
-                return uri[7:]
-            return uri
-            
-        yaml_path = _uri_to_path(yaml_uri)
-        pgm_path = _uri_to_path(pgm_uri)
+        yaml_path = uri_to_path(yaml_uri)
+        pgm_path = uri_to_path(pgm_uri)
         
         self._resolution = default_resolution
         
@@ -230,7 +227,7 @@ class MapController(QObject):
             yaml_path = project_dir / "merged_map.yaml"
             
             # Save edit layer (PNG to preserve transparency)
-            cv2.imwrite(str(edit_layer_path), overlay_img)
+            imwrite(edit_layer_path, overlay_img)
             
             # 2. Merge with original PGM map
             original_pgm_path = self._project_manager.getOriginalMap()
@@ -251,7 +248,7 @@ class MapController(QObject):
                 print("Error: original map path invalid or could not be created:", original_pgm_path)
                 return
                 
-            orig_map = cv2.imread(original_pgm_path, cv2.IMREAD_GRAYSCALE)
+            orig_map = imread(original_pgm_path, cv2.IMREAD_GRAYSCALE)
             if orig_map is None:
                 print(f"Error: Could not read original map at {original_pgm_path}")
                 return
@@ -282,7 +279,7 @@ class MapController(QObject):
             orig_map[mask] = gray_mapped[mask]
             
             # 4. Save merged map
-            cv2.imwrite(str(merged_path), orig_map)
+            imwrite(merged_path, orig_map)
             print(f"Saved merged map to: {merged_path}")
             
             # 3. Create/update YAML metadata

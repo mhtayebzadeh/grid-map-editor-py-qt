@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from PySide6.QtCore import QObject, Signal, Slot, Property
 
+from grid_map_editor.paths import uri_to_path
+
 class ProjectManager(QObject):
     projectLoaded = Signal()
     projectSaved = Signal()
@@ -130,9 +132,7 @@ class ProjectManager(QObject):
         return self._is_loaded
 
     def _uri_to_path(self, uri: str) -> str:
-        if uri.startswith("file://"):
-            return uri[7:]
-        return uri
+        return uri_to_path(uri)
 
     @Slot(str, str, str, str, str, str, str, str, str, result=bool)
     def createProject(self, name, folder_uri, map_uri, yaml_uri, resolution_str, map_topic="/map", scan_topic="/scan", tf_topic="/tf", robot_frame="base_link"):

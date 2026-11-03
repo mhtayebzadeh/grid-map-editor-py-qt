@@ -291,7 +291,7 @@ Rectangle {
         function onRosConfigChanged() {
             if (projectManager.isLoaded) {
                 console.log("ROS topics updated: Map=" + projectManager.mapTopic + " Scan=" + projectManager.scanTopic)
-                robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame);
+                robotHandler.start_ros(projectManager.scanTopic, projectManager.mapTopic, projectManager.tfTopic, projectManager.robotFrame, projectManager.initialPoseTopic, projectManager.useSimTime);
             }
         }
     }
@@ -326,7 +326,7 @@ Rectangle {
         onAccepted: {
             folderSettings.lastGateImageFolder = currentFolder
             if (addGateDialog.visible) {
-                addGateDialog.gateImage = selectedFile.toString().replace("file://", "");
+                addGateDialog.gateImage = pathHelper.toLocalPath(selectedFile);
             }
         }
     }
